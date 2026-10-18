@@ -84,3 +84,12 @@ npm run verify       # typecheck → lint → format:check → test → build
    domain definition).
 4. Auth model (Supabase Auth roles for multi-tenant workspaces).
 5. Deployment targets (web app; worker hosting).
+
+## 7. Documentation map
+
+- `docs/ARCHITECTURE.md` — application boundaries, authorization, background
+  browser execution, versioned migrations, coding/testing conventions;
+  planned vs implemented.
+- `docs/ROADMAP.md` — phased build plan with deliverables and exit criteria.
+- `docs/PHASE_STATUS.md` — living phase tracker + phase-completion rules.
+- `docs/decisions/ADR-001-initial-architecture.md` — why this architecture.
