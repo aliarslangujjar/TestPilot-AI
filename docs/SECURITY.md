@@ -8,8 +8,14 @@ claims.
 
 ## 1. Authentication
 
-- **Provider:** Supabase Auth (⬜ cloud project not yet created — owner's
-  step). Sessions are cookie-based via `@supabase/ssr`.
+- **Provider:** Supabase Auth. Sessions are cookie-based via `@supabase/ssr`.
+- **Session handling:** `proxy.ts` (Next.js 16 convention) refreshes the
+  session on every request via `supabase.auth.getUser()` and enforces route
+  protection: `/dashboard/*` requires a signed-in user (→ `/login`
+  otherwise); `/login` redirects to `/dashboard` when already signed in.
+- **UI:** `app/login` (sign-in / create-account form), sign-out button in
+  the dashboard header. Profiles are auto-created by a database trigger on
+  signup — the client never writes them directly.
 - **Clients** (`lib/supabase/`):
   - `client.ts` — browser, anon key, RLS-enforced.
   - `server.ts` — server components/route handlers, anon key + user

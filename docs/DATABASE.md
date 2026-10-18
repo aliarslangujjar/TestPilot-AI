@@ -29,6 +29,10 @@ auth.users 1───1 profiles
 RLS: a user can SELECT / INSERT / UPDATE **only their own row**
 (`auth.uid() = id`). No delete policy (rows die with the auth user).
 
+Rows are auto-created by the `trg_auth_users_new_user` trigger
+(`20261018140500_profile_trigger.sql`), which fires on `auth.users` inserts
+— app code never creates profiles directly.
+
 ### workspaces
 
 | Column                  | Type                | Notes                            |
@@ -92,13 +96,14 @@ use raw subqueries on RLS tables — infinite recursion):
 
 ## Migrations
 
-| File                              | Contents                                  |
-| --------------------------------- | ----------------------------------------- |
-| `20261018140000_core_helpers.sql` | extension, trigger + RLS helper functions |
-| `20261018140100_profiles.sql`     | profiles + RLS + grants                   |
-| `20261018140200_workspaces.sql`   | workspaces + RLS + grants                 |
-| `20261018140300_memberships.sql`  | memberships + RLS + grants                |
-| `20261018140400_projects.sql`     | projects + RLS + grants                   |
+| File                                 | Contents                                            |
+| ------------------------------------ | --------------------------------------------------- |
+| `20261018140000_core_helpers.sql`    | extension, trigger + RLS helper functions           |
+| `20261018140100_profiles.sql`        | profiles + RLS + grants                             |
+| `20261018140200_workspaces.sql`      | workspaces + RLS + grants                           |
+| `20261018140300_memberships.sql`     | memberships + RLS + grants                          |
+| `20261018140400_projects.sql`        | projects + RLS + grants                             |
+| `20261018140500_profile_trigger.sql` | auto-creates `profiles` rows on `auth.users` insert |
 
 Each file carries its own canary query as a comment. Rules: up-only,
 self-contained grants/RLS/policies, no destructive change without a reviewed

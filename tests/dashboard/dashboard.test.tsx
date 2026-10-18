@@ -1,10 +1,14 @@
 /** @vitest-environment jsdom */
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { Dashboard } from "@/components/dashboard/dashboard";
 import { DEMO_NOTICE } from "@/components/dashboard/demo-data";
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+}));
 
 afterEach(() => cleanup());
 

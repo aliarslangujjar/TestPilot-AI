@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { SignOutButton } from "@/components/auth/sign-out-button";
+import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { CreateProjectDialog } from "./create-project-dialog";
 import { DEMO_NOTICE, demoMetrics } from "./demo-data";
@@ -23,6 +25,19 @@ export function Dashboard() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [createdProjects, setCreatedProjects] = useState<string[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      createClient()
+        .auth.getUser()
+        .then(({ data }) => setUserEmail(data.user?.email ?? null))
+        .catch(() => setUserEmail(null));
+    } catch {
+      // Env not configured (e.g. tests): stay anonymous rather than crash.
+      setUserEmail(null);
+    }
+  }, []);
 
   const handleCreateProject = (name: string) => {
     setCreatedProjects((prev) => [...prev, name]);
@@ -103,7 +118,13 @@ export function Dashboard() {
                 )}
               </p>
             </div>
-            <Button onClick={() => setDialogOpen(true)}>New project</Button>
+            <div className="flex items-center gap-3">
+              {userEmail && (
+                <span className="hidden text-sm text-muted-foreground sm:inline">{userEmail}</span>
+              )}
+              <SignOutButton />
+              <Button onClick={() => setDialogOpen(true)}>New project</Button>
+            </div>
           </div>
 
           <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
