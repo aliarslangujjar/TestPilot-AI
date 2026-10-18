@@ -40,5 +40,11 @@ stays 🔶, no matter how much code is written.
 
 ## Current focus
 
-Phase 0 is complete. No phase is in progress. Awaiting explicit commission
-for Phase 1 (or any other next step).
+Phase 0 is complete. No roadmap phase is in progress. Awaiting explicit
+commission for Phase 1 (or any other next step).
+
+## Scoped tasks (outside roadmap phases)
+
+| Task                     | Scope                                                                                                                                                                                                                                             | Status | Evidence / notes                                                                                                                                                                    |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Dashboard page (UI only) | `app/dashboard` route + `components/dashboard/*`: labeled demo metrics, passed/failed/skipped breakdown, SVG pass-rate trend, recent-runs table, new-user empty state, accessible create-project dialog; responsive + accessible; component tests | ✅     | All data is hardcoded sample data — the page states no real browser tests have run. No backend, no product logic. `npm run verify` green; 7 new test files (see `tests/dashboard/`) |
