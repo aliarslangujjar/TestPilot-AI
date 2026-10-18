@@ -1,11 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
+import { signInSchema, signUpSchema } from "@schemas/auth";
 
 type Mode = "sign-in" | "sign-up";
 
@@ -15,13 +17,19 @@ const inputClass =
 /**
  * Email/password authentication form. Sign-in and sign-up share the form;
  * the mode toggle switches which Supabase Auth call runs on submit.
+ * Validation comes from the shared @schemas/auth zod schemas.
  */
 export function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [mode, setMode] = useState<Mode>("sign-in");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    searchParams.get("error") === "link-expired"
+      ? "That link is invalid or expired. Sign in or request a new password reset email."
+      : null,
+  );
   const [pending, setPending] = useState(false);
 
   const switchMode = (next: Mode) => {
@@ -32,17 +40,21 @@ export function LoginForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    if (!email.trim() || !password) {
-      setError("Enter your email and password.");
+
+    const schema = mode === "sign-in" ? signInSchema : signUpSchema;
+    const parsed = schema.safeParse({ email: email.trim(), password });
+    if (!parsed.success) {
+      setError(parsed.error.issues[0]?.message ?? "Check your entries and try again.");
       return;
     }
+
     setPending(true);
     try {
       const supabase = createClient();
       const { error: authError } =
         mode === "sign-in"
-          ? await supabase.auth.signInWithPassword({ email: email.trim(), password })
-          : await supabase.auth.signUp({ email: email.trim(), password });
+          ? await supabase.auth.signInWithPassword(parsed.data)
+          : await supabase.auth.signUp(parsed.data);
       if (authError) {
         setError(authError.message);
         return;
@@ -110,9 +122,19 @@ export function LoginForm() {
           />
         </div>
         <div>
-          <label htmlFor="password" className="text-sm font-medium">
-            Password
-          </label>
+          <div className="flex items-center justify-between">
+            <label htmlFor="password" className="text-sm font-medium">
+              Password
+            </label>
+            {mode === "sign-in" && (
+              <Link
+                href="/forgot-password"
+                className="text-xs font-medium text-primary underline-offset-4 hover:underline"
+              >
+                Forgot password?
+              </Link>
+            )}
+          </div>
           <input
             id="password"
             type="password"
@@ -122,6 +144,9 @@ export function LoginForm() {
             autoComplete={mode === "sign-in" ? "current-password" : "new-password"}
             className={inputClass}
           />
+          {mode === "sign-up" && (
+            <p className="mt-1.5 text-xs text-muted-foreground">At least 8 characters.</p>
+          )}
         </div>
         {error && (
           <p role="alert" className="text-sm text-destructive">

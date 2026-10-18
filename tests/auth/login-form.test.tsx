@@ -11,6 +11,7 @@ const { pushMock, refreshMock } = vi.hoisted(() => ({
 }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: pushMock, refresh: refreshMock }),
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 const { signInMock, signUpMock, createClientMock } = vi.hoisted(() => ({
@@ -48,6 +49,14 @@ describe("LoginForm", () => {
     expect(getSubmitButton()).toHaveTextContent("Sign in");
   });
 
+  it("links to the forgot-password page in sign-in mode", () => {
+    render(<LoginForm />);
+    expect(screen.getByRole("link", { name: "Forgot password?" })).toHaveAttribute(
+      "href",
+      "/forgot-password",
+    );
+  });
+
   it("switches to sign-up mode", async () => {
     const user = userEvent.setup();
     render(<LoginForm />);
@@ -56,12 +65,25 @@ describe("LoginForm", () => {
     expect(getSubmitButton()).toHaveTextContent("Create account");
   });
 
-  it("requires email and password before calling auth", async () => {
+  it("rejects an invalid email before calling auth", async () => {
     const user = userEvent.setup();
     render(<LoginForm />);
+    await user.type(screen.getByLabelText("Email"), "not-an-email");
+    await user.type(screen.getByLabelText("Password"), "secret123");
     await user.click(getSubmitButton());
-    expect(await screen.findByRole("alert")).toHaveTextContent(/email and password/i);
+    expect(await screen.findByRole("alert")).toHaveTextContent(/valid email/i);
     expect(signInMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a short password on sign-up", async () => {
+    const user = userEvent.setup();
+    render(<LoginForm />);
+    await user.click(screen.getByRole("button", { name: "Create account" }));
+    await user.type(screen.getByLabelText("Email"), "new@example.com");
+    await user.type(screen.getByLabelText("Password"), "short");
+    await user.click(getSubmitButton());
+    expect(await screen.findByRole("alert")).toHaveTextContent(/at least 8 characters/i);
+    expect(signUpMock).not.toHaveBeenCalled();
   });
 
   it("signs in with a trimmed email and redirects to the dashboard", async () => {
@@ -84,7 +106,7 @@ describe("LoginForm", () => {
     signInMock.mockResolvedValue({ error: { message: "Invalid login credentials" } });
     render(<LoginForm />);
     await user.type(screen.getByLabelText("Email"), "user@example.com");
-    await user.type(screen.getByLabelText("Password"), "wrong");
+    await user.type(screen.getByLabelText("Password"), "wrongpassword");
     await user.click(getSubmitButton());
     expect(await screen.findByRole("alert")).toHaveTextContent("Invalid login credentials");
     expect(pushMock).not.toHaveBeenCalled();
@@ -96,11 +118,11 @@ describe("LoginForm", () => {
     render(<LoginForm />);
     await user.click(screen.getByRole("button", { name: "Create account" }));
     await user.type(screen.getByLabelText("Email"), "new@example.com");
-    await user.type(screen.getByLabelText("Password"), "secret123");
+    await user.type(screen.getByLabelText("Password"), "secret12345");
     await user.click(getSubmitButton());
     expect(signUpMock).toHaveBeenCalledWith({
       email: "new@example.com",
-      password: "secret123",
+      password: "secret12345",
     });
     expect(pushMock).toHaveBeenCalledWith("/dashboard");
   });

@@ -28,3 +28,6 @@ export const apiErrorSchema = z.object({
 
 export type Pagination = z.infer<typeof paginationSchema>;
 export type ApiError = z.infer<typeof apiErrorSchema>;
+
+/** Auth form validation schemas (login, sign-up, password reset). */
+export * from "./auth";

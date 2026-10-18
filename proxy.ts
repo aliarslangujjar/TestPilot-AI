@@ -36,8 +36,13 @@ export default async function proxy(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
-  const isLoginPage = pathname === "/login";
-  const isProtected = pathname === "/dashboard" || pathname.startsWith("/dashboard/");
+  const isLoginPage = pathname === "/login" || pathname === "/forgot-password";
+  // /reset-password is protected: it only works with the fresh session the
+  // /auth/callback route establishes from the email link's code.
+  const isProtected =
+    pathname === "/dashboard" ||
+    pathname.startsWith("/dashboard/") ||
+    pathname === "/reset-password";
 
   if (!user && isProtected) {
     const url = request.nextUrl.clone();
