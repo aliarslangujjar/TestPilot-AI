@@ -67,14 +67,16 @@ removed** (enforced via `workspace_other_owner_count()`).
 
 ### projects
 
-| Column                  | Type                | Notes                            |
-| ----------------------- | ------------------- | -------------------------------- |
-| id                      | uuid PK             | `gen_random_uuid()`              |
-| workspace_id            | uuid → `workspaces` | ON DELETE CASCADE                |
-| name                    | text                | `check (char_length(name) >= 2)` |
-| description             | text                | nullable                         |
-| created_by              | uuid → `auth.users` | ON DELETE SET NULL               |
-| created_at / updated_at | timestamptz         | trigger-maintained               |
+| Column                  | Type                | Notes                                       |
+| ----------------------- | ------------------- | ------------------------------------------- |
+| id                      | uuid PK             | `gen_random_uuid()`                         |
+| workspace_id            | uuid → `workspaces` | ON DELETE CASCADE                           |
+| name                    | text                | `check (char_length(name) >= 2)`            |
+| description             | text                | nullable                                    |
+| base_url                | text                | nullable; `check (base_url ~ '^https?://')` |
+| is_archived             | boolean             | default false                               |
+| created_by              | uuid → `auth.users` | ON DELETE SET NULL                          |
+| created_at / updated_at | timestamptz         | trigger-maintained                          |
 
 Constraints: `unique (workspace_id, name)`.
 Indexes: `idx_projects_workspace_id`.
@@ -82,6 +84,9 @@ Indexes: `idx_projects_workspace_id`.
 RLS: **all operations require workspace membership**
 (`is_workspace_member(workspace_id)`) — this is what makes cross-workspace
 access impossible at the database layer.
+
+The base URL is stored as data only: nothing in the app fetches it or runs
+browser tests against it.
 
 ### Helper functions (`20261018140000_core_helpers.sql`)
 
@@ -104,6 +109,7 @@ use raw subqueries on RLS tables — infinite recursion):
 | `20261018140300_memberships.sql`     | memberships + RLS + grants                          |
 | `20261018140400_projects.sql`        | projects + RLS + grants                             |
 | `20261018140500_profile_trigger.sql` | auto-creates `profiles` rows on `auth.users` insert |
+| `20261018140600_project_fields.sql`  | `projects.base_url` (http(s) CHECK) + `is_archived` |
 
 Each file carries its own canary query as a comment. Rules: up-only,
 self-contained grants/RLS/policies, no destructive change without a reviewed
