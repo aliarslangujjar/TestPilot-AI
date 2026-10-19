@@ -23,6 +23,11 @@ vi.mock("@/lib/projects/actions", () => ({
   updateProject: (...args: unknown[]) => updateProjectMock(...args),
 }));
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: vi.fn(), push: vi.fn(), replace: vi.fn() }),
+  usePathname: () => "/dashboard/projects",
+}));
+
 afterEach(() => cleanup());
 
 const SAMPLE: Project = {
@@ -154,5 +159,18 @@ describe("ProjectsManager", () => {
     const dialog = await screen.findByRole("dialog");
     expect(dialog).toHaveTextContent("Covers invoicing.");
     expect(dialog).toHaveTextContent("https://staging.example.com");
+  });
+
+  it("auto-opens the create dialog when autoOpenCreate is set", async () => {
+    listProjectsMock.mockResolvedValue({ ok: true, data: [] });
+    render(<ProjectsManager workspaceId={WS_ID} workspaceName="Acme" autoOpenCreate />);
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog).toHaveTextContent("New project");
+  });
+
+  it("does not auto-open the create dialog by default", async () => {
+    renderManager();
+    expect(await screen.findByText("Billing API")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 });

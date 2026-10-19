@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -19,10 +20,15 @@ import { ProjectFormDialog } from "./project-form-dialog";
 export function ProjectsManager({
   workspaceId,
   workspaceName,
+  autoOpenCreate = false,
 }: {
   workspaceId: string;
   workspaceName: string;
+  /** Open the create dialog on mount (used by ?new=1 deep links). */
+  autoOpenCreate?: boolean;
 }) {
+  const router = useRouter();
+  const pathname = usePathname();
   const [projects, setProjects] = useState<Project[]>([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -36,6 +42,7 @@ export function ProjectsManager({
   const [archiving, setArchiving] = useState(false);
 
   const firstRun = useRef(true);
+  const autoOpened = useRef(false);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(
     () => () => {
@@ -71,15 +78,21 @@ export function ProjectsManager({
   );
 
   // Initial load immediately; search / archived-toggle debounced.
+  // A ?new=1 deep link opens the create dialog once, then cleans the URL.
   useEffect(() => {
     if (firstRun.current) {
       firstRun.current = false;
+      if (autoOpenCreate && !autoOpened.current) {
+        autoOpened.current = true;
+        setFormTarget({});
+        router.replace(pathname);
+      }
       load("", showArchived, true);
       return;
     }
     const t = setTimeout(() => load(query.trim(), showArchived, false), 400);
     return () => clearTimeout(t);
-  }, [query, showArchived, load]);
+  }, [query, showArchived, load, autoOpenCreate, router, pathname]);
 
   async function handleArchive(project: Project, archived: boolean) {
     setArchiving(true);

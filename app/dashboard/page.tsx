@@ -5,6 +5,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { getOverviewStats } from "@/lib/overview/actions";
 import { getCurrentWorkspace } from "@/lib/workspaces";
 import { formatDateTime } from "@/components/projects/project-detail-dialog";
+import { CreateWorkspaceButton } from "@/components/workspaces/create-workspace-button";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
@@ -23,10 +24,14 @@ export default async function DashboardPage() {
       <main className="mx-auto max-w-5xl p-4 sm:p-6">
         <h1 className="text-2xl font-semibold">Overview</h1>
         <div className="mt-6 rounded-lg border bg-card p-8 text-center">
-          <p className="font-medium">No workspace found</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Ask a workspace owner to invite you, then come back here.
+          <p className="font-medium">No workspace yet</p>
+          <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
+            Projects, suites, and test cases live inside a workspace. Create one to get started —
+            you&apos;ll be its owner.
           </p>
+          <div className="mt-4">
+            <CreateWorkspaceButton />
+          </div>
         </div>
       </main>
     );
@@ -41,9 +46,17 @@ export default async function DashboardPage() {
           <h1 className="text-2xl font-semibold">Overview</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">{workspace.name}</p>
         </div>
-        <Link href="/dashboard/projects" className={cn(buttonVariants({ size: "sm" }))}>
-          Manage projects
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href="/dashboard/projects?new=1" className={cn(buttonVariants({ size: "sm" }))}>
+            New project
+          </Link>
+          <Link
+            href="/dashboard/projects"
+            className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+          >
+            Manage projects
+          </Link>
+        </div>
       </div>
 
       {!stats.ok ? (

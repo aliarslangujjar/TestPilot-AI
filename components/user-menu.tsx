@@ -43,6 +43,23 @@ export function UserMenu({ user }: { user: UserMenuUser }) {
         <span className="hidden max-w-40 truncate text-sm font-medium sm:block">
           {user.displayName?.trim() || user.email}
         </span>
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 16 16"
+          fill="none"
+          className={cn(
+            "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+            open && "rotate-180",
+          )}
+        >
+          <path
+            d="M4 6l4 4 4-4"
+            stroke="currentColor"
+            strokeWidth={1.5}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
       </button>
 
       {open && (
