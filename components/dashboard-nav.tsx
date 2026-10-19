@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 const links = [
   { href: "/dashboard", label: "Overview", exact: true },
   { href: "/dashboard/projects", label: "Projects", exact: false },
+  { href: "/dashboard/profile", label: "Profile", exact: true },
 ];
 
 /** Sidebar / mobile navigation for the dashboard. */

@@ -6,7 +6,13 @@ import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 
 /** Signs the user out and returns to the home page. */
-export function SignOutButton() {
+export function SignOutButton({
+  variant = "outline",
+  className,
+}: {
+  variant?: "outline" | "ghost";
+  className?: string;
+}) {
   const router = useRouter();
 
   async function handleSignOut() {
@@ -17,7 +23,7 @@ export function SignOutButton() {
   }
 
   return (
-    <Button type="button" variant="outline" size="sm" onClick={handleSignOut}>
+    <Button type="button" variant={variant} size="sm" onClick={handleSignOut} className={className}>
       Sign out
     </Button>
   );
