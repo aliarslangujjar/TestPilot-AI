@@ -285,6 +285,12 @@ export function ProjectsManager({
                           >
                             Suites
                           </Link>
+                          <Link
+                            href={`/dashboard/projects/${project.id}/runs`}
+                            className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
+                          >
+                            Runs
+                          </Link>
                           <Button size="sm" variant="ghost" onClick={() => setViewing(project)}>
                             View
                           </Button>

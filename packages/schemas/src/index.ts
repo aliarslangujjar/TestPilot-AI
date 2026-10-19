@@ -32,6 +32,7 @@ export type ApiError = z.infer<typeof apiErrorSchema>;
 /** Auth form validation schemas (login, sign-up, password reset). */
 export * from "./auth";
 export * from "./profile";
+export * from "./test-run";
 export * from "./workspace";
 
 /** Project CRUD validation schemas. */

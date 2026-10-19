@@ -134,6 +134,52 @@ RLS: **all operations require workspace membership**
 
 Archiving is soft on both tables: history is never deleted.
 
+### test_runs
+
+| Column                  | Type                | Notes                                            |
+| ----------------------- | ------------------- | ------------------------------------------------ |
+| id                      | uuid PK             | `gen_random_uuid()`                              |
+| workspace_id            | uuid → `workspaces` | ON DELETE CASCADE                                |
+| project_id              | uuid → `projects`   | ON DELETE CASCADE                                |
+| suite_id                | uuid → `suites`     | ON DELETE SET NULL, nullable                     |
+| name                    | text                | 2–100 chars                                      |
+| source                  | text                | `manual`/`automated`, default `manual`           |
+| status                  | text                | `in_progress`/`completed`, default `in_progress` |
+| notes                   | text                | nullable                                         |
+| created_by              | uuid → `auth.users` | ON DELETE SET NULL                               |
+| created_at / updated_at | timestamptz         | trigger-maintained                               |
+| completed_at            | timestamptz         | nullable, set on completion                      |
+
+Indexes: `idx_test_runs_workspace_id`, `idx_test_runs_project_id`,
+`idx_test_runs_status`.
+
+RLS: **all operations require workspace membership**
+(`is_workspace_member(workspace_id)`).
+
+### run_results
+
+| Column                  | Type                | Notes                                          |
+| ----------------------- | ------------------- | ---------------------------------------------- |
+| id                      | uuid PK             | `gen_random_uuid()`                            |
+| run_id                  | uuid → `test_runs`  | ON DELETE CASCADE                              |
+| workspace_id            | uuid → `workspaces` | ON DELETE CASCADE (denormalized for RLS)       |
+| test_case_id            | uuid → `test_cases` | ON DELETE SET NULL, nullable (informational)   |
+| snapshot                | jsonb               | frozen case copy; the source of truth          |
+| outcome                 | text                | `unexecuted`/`pass`/`fail`/`blocked`/`skipped` |
+| notes                   | text                | nullable                                       |
+| executed_by             | uuid → `auth.users` | ON DELETE SET NULL                             |
+| executed_at             | timestamptz         | nullable                                       |
+| created_at / updated_at | timestamptz         | trigger-maintained                             |
+
+Constraints: `unique (run_id, test_case_id)`.
+Indexes: `idx_run_results_run_id`, `idx_run_results_workspace_id`,
+`idx_run_results_outcome`.
+
+RLS: **all operations require workspace membership**
+(`is_workspace_member(workspace_id)`).
+
+Summaries are computed from this table at read time — no counter columns.
+
 ### Helper functions (`20261018140000_core_helpers.sql`)
 
 All `SECURITY DEFINER` with fixed `search_path = public` (policies must not
@@ -158,6 +204,9 @@ use raw subqueries on RLS tables — infinite recursion):
 | `20261018140600_project_fields.sql`  | `projects.base_url` (http(s) CHECK) + `is_archived` |
 | `20261018140700_suites.sql`          | suites + RLS + grants                               |
 | `20261018140800_test_cases.sql`      | test_cases + RLS + grants                           |
+| `20261018140900_profile_avatar.sql`  | `profiles.avatar_url`                               |
+| `20261018141000_test_runs.sql`       | test_runs + RLS + grants                            |
+| `20261018141100_run_results.sql`     | run_results (snapshots) + RLS + grants              |
 
 Each file carries its own canary query as a comment. Rules: up-only,
 self-contained grants/RLS/policies, no destructive change without a reviewed
