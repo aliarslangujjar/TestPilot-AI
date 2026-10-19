@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createWorkspace } from "@/lib/workspaces/actions";
 
 const USER_ID = "22222222-2222-2222-2222-222222222222";
-const WS_ID = "11111111-1111-1111-1111-111111111111";
 
 const { fromMock, getUserMock, createClientMock, revalidateMock } = vi.hoisted(() => ({
   fromMock: vi.fn(),
@@ -31,7 +30,7 @@ function mockQuery(result: { data?: unknown; error?: unknown }) {
   return q;
 }
 
-const WS_ROW = { id: WS_ID, name: "Acme QA", created_at: "2026-10-18T10:00:00.000Z" };
+const WS_ROW = { id: "generated-id", name: "Acme QA", created_at: "2026-10-18T10:00:00.000Z" };
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -53,52 +52,70 @@ describe("createWorkspace", () => {
   });
 
   it("creates the workspace and bootstraps the creator as owner", async () => {
-    const queries: ReturnType<typeof mockQuery>[] = [];
+    const calls: Array<{ table: string; q: ReturnType<typeof mockQuery> }> = [];
     fromMock.mockImplementation((table: string) => {
       const q =
         table === "workspaces"
           ? mockQuery({ data: WS_ROW, error: null })
           : mockQuery({ data: null, error: null });
-      queries.push(q);
+      calls.push({ table, q });
       return q;
     });
 
     const result = await createWorkspace({ name: "Acme QA" });
-    expect(result).toEqual({
-      ok: true,
-      data: { id: WS_ID, name: "Acme QA", createdAt: WS_ROW.created_at },
-    });
+    expect(result.ok).toBe(true);
 
-    const wsQuery = queries[0]!;
-    expect((wsQuery.insert as ReturnType<typeof vi.fn>).mock.calls[0]?.[0]).toEqual({
-      name: "Acme QA",
-    });
-    const memberQuery = queries[1]!;
-    expect((memberQuery.insert as ReturnType<typeof vi.fn>).mock.calls[0]?.[0]).toEqual({
-      workspace_id: WS_ID,
+    // Workspace insert carries a client-generated id (the SELECT policy
+    // would block an insert-time returning row before membership exists).
+    const wsInsert = calls[0]!;
+    expect(wsInsert.table).toBe("workspaces");
+    const insertArg = (wsInsert.q.insert as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as {
+      id: string;
+      name: string;
+    };
+    expect(insertArg.name).toBe("Acme QA");
+    expect(typeof insertArg.id).toBe("string");
+    expect(insertArg.id.length).toBeGreaterThan(0);
+
+    const memberInsert = calls[1]!;
+    expect(memberInsert.table).toBe("memberships");
+    expect((memberInsert.q.insert as ReturnType<typeof vi.fn>).mock.calls[0]?.[0]).toEqual({
+      workspace_id: insertArg.id,
       user_id: USER_ID,
       role: "owner",
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      data: { id: WS_ROW.id, name: "Acme QA", createdAt: WS_ROW.created_at },
     });
     expect(revalidateMock).toHaveBeenCalledWith("/dashboard/projects");
   });
 
   it("cleans up the workspace when the membership bootstrap fails", async () => {
-    const queries: ReturnType<typeof mockQuery>[] = [];
+    const calls: Array<{ table: string; q: ReturnType<typeof mockQuery> }> = [];
     fromMock.mockImplementation((table: string) => {
       const q =
         table === "workspaces"
           ? mockQuery({ data: WS_ROW, error: null })
           : mockQuery({ data: null, error: { message: "denied" } });
-      queries.push(q);
+      calls.push({ table, q });
       return q;
     });
 
     const result = await createWorkspace({ name: "Acme QA" });
     expect(result.ok).toBe(false);
 
+    const insertArg = (calls[0]!.q.insert as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as {
+      id: string;
+    };
     // Best-effort delete of the ownerless workspace.
-    const deleteQuery = queries[2]!;
-    expect(deleteQuery.delete).toHaveBeenCalled();
-    expect((deleteQuery.eq as ReturnType<typeof vi.fn>).mock.calls).toContainEqual(["id", WS_ID]);
+    const cleanup = calls[2]!;
+    expect(cleanup.table).toBe("workspaces");
+    expect(cleanup.q.delete).toHaveBeenCalled();
+    expect((cleanup.q.eq as ReturnType<typeof vi.fn>).mock.calls).toContainEqual([
+      "id",
+      insertArg.id,
+    ]);
   });
 });

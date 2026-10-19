@@ -16,10 +16,22 @@ import {
  * RLS is the backstop: the workspace insert policy allows authenticated
  * inserts, and the membership bootstrap policy only allows self-insert as
  * owner when the workspace has zero members.
+ *
+ * The id is generated client-side because the workspaces SELECT policy
+ * ("Members can view their workspaces") would block the insert's returning
+ * row before the membership exists — chaining .select().single() on the
+ * insert fails with 0 rows. We select the row only after bootstrapping
+ * the owner membership.
  */
 
 const SIGNED_OUT = "You must be signed in.";
 const UNEXPECTED = "Something went wrong. Please try again.";
+
+interface WorkspaceRow {
+  id: string;
+  name: string;
+  created_at: string;
+}
 
 export async function createWorkspace(
   input: CreateWorkspaceInput,
@@ -35,33 +47,38 @@ export async function createWorkspace(
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: SIGNED_OUT };
 
-  const { data: workspace, error: workspaceError } = await supabase
-    .from("workspaces")
-    .insert({ name: parsed.data.name })
-    .select("id,name,created_at")
-    .single();
+  const workspaceId = crypto.randomUUID();
 
-  if (workspaceError || !workspace) return { ok: false, error: UNEXPECTED };
+  const { error: workspaceError } = await supabase
+    .from("workspaces")
+    .insert({ id: workspaceId, name: parsed.data.name });
+
+  if (workspaceError) return { ok: false, error: UNEXPECTED };
 
   const { error: membershipError } = await supabase.from("memberships").insert({
-    workspace_id: (workspace as { id: string }).id,
+    workspace_id: workspaceId,
     user_id: user.id,
     role: "owner",
   });
 
   if (membershipError) {
     // Best-effort cleanup: don't leave an ownerless workspace behind.
-    await supabase
-      .from("workspaces")
-      .delete()
-      .eq("id", (workspace as { id: string }).id);
+    await supabase.from("workspaces").delete().eq("id", workspaceId);
     return { ok: false, error: UNEXPECTED };
   }
+
+  const { data: workspace, error: fetchError } = await supabase
+    .from("workspaces")
+    .select("id,name,created_at")
+    .eq("id", workspaceId)
+    .single();
+
+  if (fetchError || !workspace) return { ok: false, error: UNEXPECTED };
 
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/projects");
 
-  const row = workspace as { id: string; name: string; created_at: string };
+  const row = workspace as WorkspaceRow;
   return {
     ok: true,
     data: { id: row.id, name: row.name, createdAt: row.created_at },
