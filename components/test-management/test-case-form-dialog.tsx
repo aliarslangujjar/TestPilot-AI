@@ -51,6 +51,9 @@ export function TestCaseFormDialog({
   const [priority, setPriority] = useState<TestCase["priority"]>(testCase?.priority ?? "medium");
   const [tagsInput, setTagsInput] = useState(testCase?.tags.join(", ") ?? "");
   const [status, setStatus] = useState<TestCase["status"]>(testCase?.status ?? "draft");
+  const [objective, setObjective] = useState(testCase?.objective ?? "");
+  const [coverage, setCoverage] = useState<TestCase["coverage"]>(testCase?.coverage ?? null);
+  const [assumptionsInput, setAssumptionsInput] = useState(testCase?.assumptions.join("\n") ?? "");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -71,6 +74,11 @@ export function TestCaseFormDialog({
       .map((t) => t.trim())
       .filter((t) => t.length > 0);
 
+    const assumptions = assumptionsInput
+      .split("\n")
+      .map((a) => a.trim())
+      .filter((a) => a.length > 0);
+
     const parsed = createTestCaseSchema.safeParse({
       title: title.trim(),
       description: description.trim() ? description.trim() : null,
@@ -83,6 +91,9 @@ export function TestCaseFormDialog({
       priority,
       tags,
       status,
+      objective: objective.trim() ? objective.trim() : null,
+      coverage,
+      assumptions,
     });
     if (!parsed.success) {
       setError(parsed.error.issues[0]?.message ?? "Check your entries and try again.");
@@ -122,6 +133,21 @@ export function TestCaseFormDialog({
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Login rejects wrong password"
+            autoComplete="off"
+            className={inputClass}
+          />
+        </div>
+
+        <div>
+          <label htmlFor="case-objective" className="text-sm font-medium">
+            Objective
+          </label>
+          <input
+            id="case-objective"
+            type="text"
+            value={objective}
+            onChange={(e) => setObjective(e.target.value)}
+            placeholder="What this case verifies, in one sentence"
             autoComplete="off"
             className={inputClass}
           />
@@ -178,6 +204,40 @@ export function TestCaseFormDialog({
             autoComplete="off"
             className={inputClass}
           />
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label htmlFor="case-coverage" className="text-sm font-medium">
+              Coverage <span className="font-normal text-muted-foreground">(optional)</span>
+            </label>
+            <select
+              id="case-coverage"
+              value={coverage ?? ""}
+              onChange={(e) => setCoverage((e.target.value || null) as TestCase["coverage"])}
+              className={cn(inputClass, "bg-background")}
+            >
+              <option value="">—</option>
+              {["positive", "negative", "boundary"].map((c) => (
+                <option key={c} value={c}>
+                  {c[0]?.toUpperCase() + c.slice(1)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="case-assumptions" className="text-sm font-medium">
+              Assumptions{" "}
+              <span className="font-normal text-muted-foreground">(optional, one per line)</span>
+            </label>
+            <textarea
+              id="case-assumptions"
+              value={assumptionsInput}
+              onChange={(e) => setAssumptionsInput(e.target.value)}
+              rows={2}
+              className={inputClass}
+            />
+          </div>
         </div>
 
         <div>

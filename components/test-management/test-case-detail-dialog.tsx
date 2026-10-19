@@ -48,6 +48,30 @@ export function TestCaseDetailDialog({
       </div>
 
       <dl className="mt-4 space-y-3 text-sm">
+        {testCase.objective && (
+          <div>
+            <dt className="font-medium text-muted-foreground">Objective</dt>
+            <dd className="mt-0.5 whitespace-pre-wrap">{testCase.objective}</dd>
+          </div>
+        )}
+        {testCase.coverage && (
+          <div>
+            <dt className="font-medium text-muted-foreground">Coverage</dt>
+            <dd className="mt-0.5 capitalize">{testCase.coverage}</dd>
+          </div>
+        )}
+        {testCase.assumptions.length > 0 && (
+          <div>
+            <dt className="font-medium text-muted-foreground">Assumptions</dt>
+            <dd className="mt-0.5">
+              <ul className="list-disc pl-5">
+                {testCase.assumptions.map((a, i) => (
+                  <li key={i}>{a}</li>
+                ))}
+              </ul>
+            </dd>
+          </div>
+        )}
         {testCase.description && (
           <div>
             <dt className="font-medium text-muted-foreground">Description</dt>

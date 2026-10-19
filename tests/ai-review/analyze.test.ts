@@ -14,6 +14,9 @@ function draft(overrides: Partial<GeneratedCase> = {}): GeneratedCase {
     expectedResults: "The user lands on the dashboard",
     priority: "medium",
     tags: [],
+    objective: "",
+    coverage: null,
+    assumptions: [],
     ...overrides,
   };
 }

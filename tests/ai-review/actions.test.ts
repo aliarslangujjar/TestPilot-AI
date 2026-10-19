@@ -49,6 +49,9 @@ function generatedCase(tempId: string, title: string): GeneratedCase {
     expectedResults: "Done",
     priority: "high",
     tags: ["smoke"],
+    objective: "Verifies the thing.",
+    coverage: "negative",
+    assumptions: ["Assumed the user is signed in."],
   };
 }
 
@@ -117,6 +120,9 @@ describe("saveReviewedCases", () => {
       priority: "high",
       tags: ["smoke"],
       status: "draft",
+      objective: "Verifies the thing.",
+      coverage: "negative",
+      assumptions: ["Assumed the user is signed in."],
     });
   });
 

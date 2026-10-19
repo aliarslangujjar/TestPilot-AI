@@ -32,6 +32,9 @@ function draftA(): GeneratedCase {
     expectedResults: "The user lands on the dashboard",
     priority: "medium",
     tags: [],
+    objective: "",
+    coverage: null,
+    assumptions: [],
   };
 }
 
@@ -45,6 +48,9 @@ function draftB(): GeneratedCase {
     expectedResults: "The user lands on the dashboard",
     priority: "high",
     tags: [],
+    objective: "",
+    coverage: null,
+    assumptions: [],
   };
 }
 

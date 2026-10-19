@@ -97,6 +97,9 @@ function templateDraft(kind: "negative" | "boundary", tempId: string): Generated
     expectedResults: "[TODO: describe the exact observable outcome]",
     priority: "medium",
     tags: [isNegative ? "negative" : "boundary"],
+    objective: "",
+    coverage: kind,
+    assumptions: [],
   };
 }
 

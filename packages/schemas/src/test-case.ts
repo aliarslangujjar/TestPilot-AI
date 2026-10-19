@@ -63,6 +63,24 @@ export const testCaseTagsSchema = z
 
 export const testCaseStatusSchema = z.enum(["draft", "active"]);
 
+export const testCaseObjectiveSchema = z
+  .string()
+  .trim()
+  .max(500, "Objective must be at most 500 characters.")
+  .nullish();
+
+export const testCaseCoverageSchema = z.enum(["positive", "negative", "boundary"]);
+
+export const testCaseAssumptionsSchema = z
+  .array(
+    z
+      .string()
+      .trim()
+      .min(1, "Assumptions cannot be empty.")
+      .max(200, "Each assumption must be at most 200 characters."),
+  )
+  .max(20, "At most 20 assumptions per test case.");
+
 export const createTestCaseSchema = z.object({
   title: testCaseTitleSchema,
   description: testCaseDescriptionSchema,
@@ -72,6 +90,9 @@ export const createTestCaseSchema = z.object({
   priority: testCasePrioritySchema.default("medium"),
   tags: testCaseTagsSchema.default([]),
   status: testCaseStatusSchema.default("draft"),
+  objective: testCaseObjectiveSchema,
+  coverage: testCaseCoverageSchema.nullish(),
+  assumptions: testCaseAssumptionsSchema.default([]),
 });
 
 /** Editing a test case uses the same shape as creating one. */
@@ -90,6 +111,9 @@ export const testCaseSchema = z.object({
   priority: testCasePrioritySchema,
   tags: z.array(z.string()),
   status: testCaseStatusSchema,
+  objective: z.string().nullable(),
+  coverage: testCaseCoverageSchema.nullable(),
+  assumptions: z.array(z.string()),
   isArchived: z.boolean(),
   createdBy: z.uuid().nullable(),
   createdAt: z.string(),

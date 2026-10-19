@@ -56,12 +56,15 @@ export function ReviewWorkspace({
   suiteId,
   initialDrafts,
   existingCases,
+  onSaved,
 }: {
   workspaceId: string;
   projectId: string;
   suiteId: string;
   initialDrafts: GeneratedCase[];
   existingCases: ExistingCaseRef[];
+  /** Called after approved drafts are saved (e.g. to refresh a list). */
+  onSaved?: (created: number) => void;
 }) {
   const [review, setReview] = useState<ReviewState>(() =>
     initialState(initialDrafts, existingCases),
@@ -126,6 +129,7 @@ export function ReviewWorkspace({
       return;
     }
     setSavedCount(result.data.created);
+    onSaved?.(result.data.created);
   }
 
   if (review.drafts.length === 0) {
@@ -215,6 +219,15 @@ export function ReviewWorkspace({
                   />
                 </label>
                 <label className="block text-sm">
+                  <span className="text-muted-foreground">Objective</span>
+                  <input
+                    value={selected.objective ?? ""}
+                    onChange={(e) => onEdit(selected.tempId, { objective: e.target.value })}
+                    placeholder="What this case verifies"
+                    className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2"
+                  />
+                </label>
+                <label className="block text-sm">
                   <span className="text-muted-foreground">Description</span>
                   <textarea
                     value={selected.description}
@@ -300,6 +313,44 @@ export function ReviewWorkspace({
                     className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2"
                   />
                 </label>
+                <div className="flex gap-3">
+                  <label className="block text-sm">
+                    <span className="text-muted-foreground">Coverage</span>
+                    <select
+                      value={selected.coverage ?? ""}
+                      onChange={(e) =>
+                        onEdit(selected.tempId, {
+                          coverage: (e.target.value || null) as GeneratedCase["coverage"],
+                        })
+                      }
+                      className="mt-1 rounded-md border border-input bg-background px-2 py-2"
+                    >
+                      <option value="">—</option>
+                      {["positive", "negative", "boundary"].map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block flex-1 text-sm">
+                    <span className="text-muted-foreground">Assumptions (one per line)</span>
+                    <textarea
+                      value={(selected.assumptions ?? []).join("\n")}
+                      onChange={(e) =>
+                        onEdit(selected.tempId, {
+                          assumptions: e.target.value
+                            .split("\n")
+                            .map((a) => a.trim())
+                            .filter(Boolean),
+                        })
+                      }
+                      rows={2}
+                      placeholder="Anything the generator assumed"
+                      className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2"
+                    />
+                  </label>
+                </div>
                 <div className="flex gap-3">
                   <label className="block text-sm">
                     <span className="text-muted-foreground">Priority</span>

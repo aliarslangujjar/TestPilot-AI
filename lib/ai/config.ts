@@ -4,6 +4,8 @@ import type { LanguageModel } from "ai";
 
 import { aiConfigSchema, type AIConfig, type AIProvider } from "@schemas/ai";
 
+export { AI_MODEL_RATES_USD_PER_MTOK } from "@schemas/ai";
+
 /**
  * Provider-independent AI configuration.
  *

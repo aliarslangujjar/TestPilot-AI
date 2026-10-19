@@ -23,6 +23,15 @@ export const aiConfigSchema = z.object({
 
 export type AIConfig = z.infer<typeof aiConfigSchema>;
 
+/**
+ * Approximate public rates in USD per 1M tokens (October 2026).
+ * Estimates only — verify on the provider pricing pages before budgeting.
+ */
+export const AI_MODEL_RATES_USD_PER_MTOK: Record<AIProvider, { input: number; output: number }> = {
+  openai: { input: 0.15, output: 0.6 },
+  anthropic: { input: 0.8, output: 4.0 },
+};
+
 /** Input validation for a structured AI request. */
 export const structuredRequestSchema = z.object({
   workspaceId: z.string().uuid(),

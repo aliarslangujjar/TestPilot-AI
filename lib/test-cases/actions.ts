@@ -43,6 +43,9 @@ interface TestCaseRow {
   priority: TestCase["priority"];
   tags: string[];
   status: TestCase["status"];
+  objective: string | null;
+  coverage: TestCase["coverage"];
+  assumptions: string[];
   is_archived: boolean;
   created_by: string | null;
   created_at: string;
@@ -50,7 +53,7 @@ interface TestCaseRow {
 }
 
 const TEST_CASE_COLUMNS =
-  "id,workspace_id,suite_id,title,description,preconditions,steps,expected_results,priority,tags,status,is_archived,created_by,created_at,updated_at";
+  "id,workspace_id,suite_id,title,description,preconditions,steps,expected_results,priority,tags,status,objective,coverage,assumptions,is_archived,created_by,created_at,updated_at";
 
 function toTestCase(row: TestCaseRow): TestCase {
   return {
@@ -68,6 +71,9 @@ function toTestCase(row: TestCaseRow): TestCase {
     priority: row.priority,
     tags: row.tags ?? [],
     status: row.status,
+    objective: row.objective,
+    coverage: row.coverage,
+    assumptions: row.assumptions ?? [],
     isArchived: row.is_archived,
     createdBy: row.created_by,
     createdAt: row.created_at,
@@ -186,6 +192,9 @@ function toRowInput(data: CreateTestCaseInput | UpdateTestCaseInput) {
     priority: data.priority ?? "medium",
     tags: data.tags ?? [],
     status: data.status ?? "draft",
+    objective: data.objective ?? null,
+    coverage: data.coverage ?? null,
+    assumptions: data.assumptions ?? [],
   };
 }
 

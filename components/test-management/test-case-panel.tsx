@@ -11,6 +11,7 @@ import { formatDateTime } from "@/components/projects/project-detail-dialog";
 
 import { TestCaseDetailDialog } from "./test-case-detail-dialog";
 import { TestCaseFormDialog } from "./test-case-form-dialog";
+import { GeneratePlanDialog } from "@/components/test-plans/generate-plan-dialog";
 
 const PRIORITIES = ["low", "medium", "high", "critical"] as const;
 
@@ -59,6 +60,7 @@ export function TestCasePanel({
   const [refreshing, setRefreshing] = useState(false);
   const [filters, setFilters] = useState<Filters>(CLEAR_FILTERS);
   const [formTarget, setFormTarget] = useState<{ testCase?: TestCase } | null>(null);
+  const [showGenerate, setShowGenerate] = useState(false);
   const [viewing, setViewing] = useState<TestCase | null>(null);
   const [confirmingArchive, setConfirmingArchive] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -163,9 +165,14 @@ export function TestCasePanel({
           {suite.name}
           <span className="ml-2 text-sm font-normal text-muted-foreground">test cases</span>
         </h2>
-        <Button size="sm" onClick={() => setFormTarget({})} disabled={busy}>
-          New test case
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" variant="outline" onClick={() => setShowGenerate(true)} disabled={busy}>
+            Generate with AI
+          </Button>
+          <Button size="sm" onClick={() => setFormTarget({})} disabled={busy}>
+            New test case
+          </Button>
+        </div>
       </div>
 
       <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
@@ -391,6 +398,17 @@ export function TestCasePanel({
           </ul>
         )}
       </div>
+
+      {showGenerate && (
+        <GeneratePlanDialog
+          workspaceId={workspaceId}
+          projectId={projectId}
+          suiteId={suite.id}
+          existingCases={cases.map((c) => ({ id: c.id, title: c.title }))}
+          onClose={() => setShowGenerate(false)}
+          onSaved={() => load(filters, false)}
+        />
+      )}
 
       {formTarget && (
         <TestCaseFormDialog

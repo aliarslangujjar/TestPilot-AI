@@ -20,6 +20,10 @@ export const generatedCaseSchema = z.object({
   expectedResults: z.string().trim().min(1).max(2000),
   priority: z.enum(["low", "medium", "high", "critical"]).default("medium"),
   tags: z.array(z.string().trim().min(1).max(30)).max(10).default([]),
+  /** Carried through review into the saved test case. */
+  objective: z.string().trim().max(500).default(""),
+  coverage: z.enum(["positive", "negative", "boundary"]).nullable().default(null),
+  assumptions: z.array(z.string().trim().min(1).max(200)).max(20).default([]),
 });
 
 export type GeneratedCase = z.infer<typeof generatedCaseSchema>;

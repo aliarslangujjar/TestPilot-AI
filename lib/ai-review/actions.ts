@@ -65,6 +65,9 @@ export async function saveReviewedCases(
         priority: c.priority,
         tags: c.tags,
         status: "draft",
+        objective: c.objective || null,
+        coverage: c.coverage,
+        assumptions: c.assumptions,
       });
       if (!result.ok) return { ok: false, error: result.error };
       ids.push(result.data.id);
