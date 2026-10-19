@@ -13,11 +13,13 @@ export function Dialog({
   onClose,
   children,
   labelledBy,
+  wide = false,
 }: {
   title: string;
   onClose: () => void;
   children: ReactNode;
   labelledBy: string;
+  wide?: boolean;
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
 
@@ -47,8 +49,9 @@ export function Dialog({
         aria-labelledby={labelledBy}
         tabIndex={-1}
         className={cn(
-          "w-full max-w-md rounded-lg border bg-card p-6 shadow-lg",
+          "w-full rounded-lg border bg-card p-6 shadow-lg",
           "focus-visible:outline-none",
+          wide ? "max-w-2xl" : "max-w-md",
         )}
       >
         <h2 id={labelledBy} className="text-lg font-semibold">

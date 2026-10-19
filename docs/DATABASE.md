@@ -88,6 +88,52 @@ access impossible at the database layer.
 The base URL is stored as data only: nothing in the app fetches it or runs
 browser tests against it.
 
+### suites
+
+| Column                  | Type                | Notes                           |
+| ----------------------- | ------------------- | ------------------------------- |
+| id                      | uuid PK             | `gen_random_uuid()`             |
+| workspace_id            | uuid → `workspaces` | ON DELETE CASCADE               |
+| project_id              | uuid → `projects`   | ON DELETE CASCADE               |
+| name                    | text                | 2–100 chars, unique per project |
+| description             | text                | nullable                        |
+| is_archived             | boolean             | default false                   |
+| created_by              | uuid → `auth.users` | ON DELETE SET NULL              |
+| created_at / updated_at | timestamptz         | trigger-maintained              |
+
+Constraints: `unique (project_id, name)`.
+Indexes: `idx_suites_workspace_id`, `idx_suites_project_id`.
+
+RLS: **all operations require workspace membership**
+(`is_workspace_member(workspace_id)`).
+
+### test_cases
+
+| Column                  | Type                | Notes                                         |
+| ----------------------- | ------------------- | --------------------------------------------- |
+| id                      | uuid PK             | `gen_random_uuid()`                           |
+| workspace_id            | uuid → `workspaces` | ON DELETE CASCADE (denormalized for RLS)      |
+| suite_id                | uuid → `suites`     | ON DELETE CASCADE                             |
+| title                   | text                | 2–200 chars                                   |
+| description             | text                | nullable                                      |
+| preconditions           | text                | nullable                                      |
+| steps                   | jsonb               | array of `{action, expected}`, default `'[]'` |
+| expected_results        | text                | nullable                                      |
+| priority                | text                | `low/medium/high/critical`, default `medium`  |
+| tags                    | text[]              | default `'{}'`, max 20 (app-level)            |
+| status                  | text                | `draft/active`, default `draft`               |
+| is_archived             | boolean             | default false                                 |
+| created_by              | uuid → `auth.users` | ON DELETE SET NULL                            |
+| created_at / updated_at | timestamptz         | trigger-maintained                            |
+
+Indexes: `idx_test_cases_workspace_id`, `idx_test_cases_suite_id`,
+`idx_test_cases_status`, `idx_test_cases_priority`.
+
+RLS: **all operations require workspace membership**
+(`is_workspace_member(workspace_id)`).
+
+Archiving is soft on both tables: history is never deleted.
+
 ### Helper functions (`20261018140000_core_helpers.sql`)
 
 All `SECURITY DEFINER` with fixed `search_path = public` (policies must not
@@ -110,6 +156,8 @@ use raw subqueries on RLS tables — infinite recursion):
 | `20261018140400_projects.sql`        | projects + RLS + grants                             |
 | `20261018140500_profile_trigger.sql` | auto-creates `profiles` rows on `auth.users` insert |
 | `20261018140600_project_fields.sql`  | `projects.base_url` (http(s) CHECK) + `is_archived` |
+| `20261018140700_suites.sql`          | suites + RLS + grants                               |
+| `20261018140800_test_cases.sql`      | test_cases + RLS + grants                           |
 
 Each file carries its own canary query as a comment. Rules: up-only,
 self-contained grants/RLS/policies, no destructive change without a reviewed

@@ -1,8 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { listProjects, setProjectArchived } from "@/lib/projects/actions";
 import type { Project } from "@schemas/project";
 import { cn } from "@/lib/utils";
@@ -265,6 +266,12 @@ export function ProjectsManager({
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1">
+                          <Link
+                            href={`/dashboard/projects/${project.id}/suites`}
+                            className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
+                          >
+                            Suites
+                          </Link>
                           <Button size="sm" variant="ghost" onClick={() => setViewing(project)}>
                             View
                           </Button>

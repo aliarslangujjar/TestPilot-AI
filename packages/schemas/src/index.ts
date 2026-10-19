@@ -34,3 +34,9 @@ export * from "./auth";
 
 /** Project CRUD validation schemas. */
 export * from "./project";
+
+/** Suite validation schemas. */
+export * from "./suite";
+
+/** Test-case validation schemas. */
+export * from "./test-case";

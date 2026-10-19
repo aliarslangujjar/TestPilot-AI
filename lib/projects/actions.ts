@@ -2,12 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 
-import {
-  assertWorkspaceMembership,
-  WorkspaceAccessDeniedError,
-  type MembershipQueryClient,
-} from "@/lib/supabase/workspace-auth";
-import { createClient } from "@/lib/supabase/server";
+import { WorkspaceAccessDeniedError } from "@/lib/supabase/workspace-auth";
+import { requireWorkspaceClient } from "@/lib/workspace-authz";
+import type { ActionResult } from "@/lib/action-result";
 import {
   createProjectSchema,
   projectSearchSchema,
@@ -28,8 +25,6 @@ import {
  * The base URL is stored as data only. Nothing here fetches it or executes
  * browser tests.
  */
-
-export type ActionResult<T> = { ok: true; data: T } | { ok: false; error: string };
 
 const NO_ACCESS = "You don't have access to this workspace.";
 const NOT_FOUND = "Project not found.";
@@ -69,28 +64,8 @@ function escapeLike(value: string): string {
   return value.replace(/[\\%_]/g, (m) => `\\${m}`);
 }
 
-/**
- * Returns an authenticated client scoped to the workspace, or throws
- * WorkspaceAccessDeniedError (unknown workspace, non-member, malformed id,
- * or signed out — all indistinguishable).
- */
-async function workspaceClient(workspaceId: string) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    throw new WorkspaceAccessDeniedError(workspaceId, "not signed in");
-  }
-  // The supabase-js client type is too deep for the structural
-  // MembershipQueryClient interface; the runtime shape matches.
-  await assertWorkspaceMembership(
-    supabase as unknown as MembershipQueryClient,
-    workspaceId,
-    user.id,
-  );
-  return { supabase, userId: user.id };
-}
+/** Local alias kept so the rest of this module reads unchanged. */
+const workspaceClient = requireWorkspaceClient;
 
 function toError(error: unknown): string {
   if (error instanceof WorkspaceAccessDeniedError) return NO_ACCESS;
