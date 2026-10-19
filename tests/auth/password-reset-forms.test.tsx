@@ -79,6 +79,6 @@ describe("ResetPasswordForm", () => {
     await user.type(screen.getByLabelText("Confirm new password"), "newpassword1");
     await user.click(screen.getByRole("button", { name: "Save new password" }));
     expect(updateUserMock).toHaveBeenCalledWith({ password: "newpassword1" });
-    expect(pushMock).toHaveBeenCalledWith("/dashboard");
+    expect(pushMock).toHaveBeenCalledWith("/dashboard/projects");
   });
 });

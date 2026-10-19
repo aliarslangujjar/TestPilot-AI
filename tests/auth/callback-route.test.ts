@@ -36,19 +36,19 @@ describe("GET /auth/callback", () => {
   it("falls back to /dashboard when next is missing", async () => {
     exchangeMock.mockResolvedValue({ error: null });
     const res = await GET(callbackRequest("?code=abc123"));
-    expect(res.headers.get("location")).toBe("http://localhost:3000/dashboard");
+    expect(res.headers.get("location")).toBe("http://localhost:3000/dashboard/projects");
   });
 
   it("rejects absolute URLs in next (open-redirect protection)", async () => {
     exchangeMock.mockResolvedValue({ error: null });
     const res = await GET(callbackRequest("?code=abc123&next=https://evil.example"));
-    expect(res.headers.get("location")).toBe("http://localhost:3000/dashboard");
+    expect(res.headers.get("location")).toBe("http://localhost:3000/dashboard/projects");
   });
 
   it("rejects protocol-relative URLs in next", async () => {
     exchangeMock.mockResolvedValue({ error: null });
     const res = await GET(callbackRequest("?code=abc123&next=//evil.example/path"));
-    expect(res.headers.get("location")).toBe("http://localhost:3000/dashboard");
+    expect(res.headers.get("location")).toBe("http://localhost:3000/dashboard/projects");
   });
 
   it("sends missing codes to /login with an error flag", async () => {

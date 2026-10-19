@@ -98,7 +98,7 @@ describe("LoginForm", () => {
       password: "secret123",
     });
     expect(refreshMock).toHaveBeenCalled();
-    expect(pushMock).toHaveBeenCalledWith("/dashboard");
+    expect(pushMock).toHaveBeenCalledWith("/dashboard/projects");
   });
 
   it("shows the auth error without redirecting on failure", async () => {
@@ -124,6 +124,6 @@ describe("LoginForm", () => {
       email: "new@example.com",
       password: "secret12345",
     });
-    expect(pushMock).toHaveBeenCalledWith("/dashboard");
+    expect(pushMock).toHaveBeenCalledWith("/dashboard/projects");
   });
 });

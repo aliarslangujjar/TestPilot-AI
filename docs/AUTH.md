@@ -5,13 +5,13 @@ TestPilot AI uses **Supabase Auth** (email/password). Social login and SSO are
 
 ## Flows
 
-| Flow            | Entry point        | What happens                                                                     |
-| --------------- | ------------------ | -------------------------------------------------------------------------------- |
-| Sign up         | `/login` (toggle)  | `supabase.auth.signUp()` → profile row auto-created by DB trigger → `/dashboard` |
-| Sign in         | `/login`           | `supabase.auth.signInWithPassword()` → `/dashboard`                              |
-| Sign out        | Dashboard header   | `supabase.auth.signOut()` → `/`                                                  |
-| Forgot password | `/forgot-password` | `resetPasswordForEmail()` sends a link (generic confirmation, see below)         |
-| Reset password  | Email link         | `/auth/callback?next=/reset-password` exchanges the code → `/reset-password`     |
+| Flow            | Entry point        | What happens                                                                              |
+| --------------- | ------------------ | ----------------------------------------------------------------------------------------- |
+| Sign up         | `/login` (toggle)  | `supabase.auth.signUp()` → profile row auto-created by DB trigger → `/dashboard/projects` |
+| Sign in         | `/login`           | `supabase.auth.signInWithPassword()` → `/dashboard/projects`                              |
+| Sign out        | Dashboard header   | `supabase.auth.signOut()` → `/`                                                           |
+| Forgot password | `/forgot-password` | `resetPasswordForEmail()` sends a link (generic confirmation, see below)                  |
+| Reset password  | Email link         | `/auth/callback?next=/reset-password` exchanges the code → `/reset-password`              |
 
 ## Redirect URLs
 
@@ -22,7 +22,7 @@ the app's callback route, never directly at a page:
 - The route exchanges the one-time `code` for a session, then redirects to
   `next`. `next` is validated to a same-origin path (`/…`, not `//…` or
   absolute URLs) to block open-redirect attacks; invalid values fall back to
-  `/dashboard`.
+  `/dashboard/projects`.
 - Missing/expired codes redirect to `/login?error=link-expired`, which shows
   an explanatory notice.
 
@@ -49,7 +49,7 @@ In the Supabase dashboard → **Authentication → URL Configuration**:
 - **Protected routes** (enforced in `proxy.ts`, i.e. on the server before any
   page renders): `/dashboard/*` and `/reset-password`. Signed-out visitors go
   to `/login`; signed-in users visiting `/login` or `/forgot-password` go to
-  `/dashboard`.
+  `/dashboard/projects`.
 - Client components read the session only for display (dashboard header email)
   and sign-out; authorization decisions always happen server-side.
 

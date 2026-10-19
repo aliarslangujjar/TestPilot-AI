@@ -59,11 +59,11 @@ describe("proxy route protection", () => {
     expect(res.status).toBe(200);
   });
 
-  it("redirects signed-in users away from /login to /dashboard", async () => {
+  it("redirects signed-in users away from /login to /dashboard/projects", async () => {
     asSignedIn();
     const res = await proxy(requestTo("/login"));
     expect(res.status).toBe(307);
-    expect(res.headers.get("location")).toBe("http://localhost:3000/dashboard");
+    expect(res.headers.get("location")).toBe("http://localhost:3000/dashboard/projects");
   });
 
   it("lets signed-out users reach public pages", async () => {

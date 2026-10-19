@@ -8,7 +8,7 @@ import { getPublicSupabaseEnv } from "@/lib/supabase/env";
  * every request so server components always see a valid session, and
  * enforces route protection:
  * - /dashboard/* requires a signed-in user (otherwise -> /login)
- * - /login redirects to /dashboard when already signed in
+ * - /login and /forgot-password redirect to /dashboard/projects when signed in
  */
 export default async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -52,7 +52,7 @@ export default async function proxy(request: NextRequest) {
 
   if (user && isLoginPage) {
     const url = request.nextUrl.clone();
-    url.pathname = "/dashboard";
+    url.pathname = "/dashboard/projects";
     return NextResponse.redirect(url);
   }
 

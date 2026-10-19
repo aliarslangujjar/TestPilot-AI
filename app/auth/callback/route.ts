@@ -8,13 +8,13 @@ import { createClient } from "@/lib/supabase/server";
  *
  * The `next` parameter is strictly validated to a same-origin path to
  * prevent open-redirect attacks: only values starting with a single "/"
- * are honored; everything else falls back to /dashboard.
+ * are honored; everything else falls back to /dashboard/projects.
  */
 function getSafeNextPath(next: string | null): string {
   if (next && next.startsWith("/") && !next.startsWith("//")) {
     return next;
   }
-  return "/dashboard";
+  return "/dashboard/projects";
 }
 
 export async function GET(request: NextRequest) {

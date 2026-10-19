@@ -42,7 +42,7 @@ export function ResetPasswordForm() {
         return;
       }
       router.refresh();
-      router.push("/dashboard");
+      router.push("/dashboard/projects");
     } finally {
       setPending(false);
     }
