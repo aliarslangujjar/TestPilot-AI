@@ -30,6 +30,7 @@ export type Pagination = z.infer<typeof paginationSchema>;
 export type ApiError = z.infer<typeof apiErrorSchema>;
 
 /** Auth form validation schemas (login, sign-up, password reset). */
+export * from "./browser-test";
 export * from "./test-plan";
 export * from "./ai-review";
 export * from "./ai";
