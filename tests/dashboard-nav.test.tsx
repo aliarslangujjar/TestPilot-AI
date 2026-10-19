@@ -11,13 +11,16 @@ vi.mock("next/navigation", () => ({
 afterEach(() => cleanup());
 
 describe("DashboardNav", () => {
-  it("marks the current section and links both sections", () => {
+  it("marks the current section and links all sections", () => {
     render(<DashboardNav />);
     const projects = screen.getByRole("link", { name: "Projects" });
-    const overview = screen.getByRole("link", { name: "Overview" });
+    const analytics = screen.getByRole("link", { name: "Analytics" });
+    const profile = screen.getByRole("link", { name: "Profile" });
     expect(projects).toHaveAttribute("href", "/dashboard/projects");
     expect(projects).toHaveAttribute("aria-current", "page");
-    expect(overview).toHaveAttribute("href", "/dashboard");
-    expect(overview).not.toHaveAttribute("aria-current");
+    expect(analytics).toHaveAttribute("href", "/dashboard");
+    expect(analytics).not.toHaveAttribute("aria-current");
+    expect(profile).toHaveAttribute("href", "/dashboard/profile");
+    expect(profile).not.toHaveAttribute("aria-current");
   });
 });

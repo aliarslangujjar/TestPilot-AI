@@ -3,6 +3,7 @@ import Link from "next/link";
 import { DashboardNav } from "@/components/dashboard-nav";
 import { getProfile } from "@/lib/profile/actions";
 import { createClient } from "@/lib/supabase/server";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/user-menu";
 import { getCurrentWorkspace } from "@/lib/workspaces";
 
@@ -54,7 +55,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
           <p className="hidden min-w-0 truncate text-sm text-muted-foreground md:block">
             {workspace?.name}
           </p>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-1">
+            <ThemeToggle />
             <UserMenu
               user={{
                 email: user?.email ?? null,

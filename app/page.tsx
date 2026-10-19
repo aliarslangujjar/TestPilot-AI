@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { buttonVariants } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
@@ -83,6 +84,7 @@ export default function HomePage() {
             <Link href="/login" className={cn(buttonVariants({ size: "sm" }))}>
               Sign in
             </Link>
+            <ThemeToggle />
           </nav>
         </div>
       </header>
