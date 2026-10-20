@@ -120,6 +120,7 @@ const assertTextStepSchema = z
     locator: browserLocatorSchema,
     text: z.string().trim().min(1).max(MAX_TEXT),
     exact: z.boolean().default(false),
+    timeoutMs: timeoutMsSchema.optional(),
   })
   .strict();
 
@@ -128,6 +129,7 @@ const assertUrlStepSchema = z
     action: z.literal("assertUrl"),
     expected: z.string().trim().min(1).max(MAX_TEXT),
     match: z.enum(["exact", "contains"]).default("exact"),
+    timeoutMs: timeoutMsSchema.optional(),
   })
   .strict();
 
@@ -136,6 +138,7 @@ const assertStateStepSchema = z
     action: z.literal("assertState"),
     locator: browserLocatorSchema,
     state: z.enum(["visible", "hidden", "enabled", "disabled", "checked", "unchecked"]),
+    timeoutMs: timeoutMsSchema.optional(),
   })
   .strict();
 

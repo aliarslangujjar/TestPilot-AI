@@ -57,7 +57,7 @@ Access rules:
   explicitly before touching data.
 - No direct Postgres connections from the browser, ever.
 
-### 2.3 Playwright worker (`workers/playwright/`) — ⬜ planned, README only
+### 2.3 Playwright worker (`workers/playwright/`) — ✅ implemented
 
 A standalone Node.js service and separate deployable. It pulls test-run jobs
 from a queue, executes them with Playwright in isolated browser contexts, and
