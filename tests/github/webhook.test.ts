@@ -189,7 +189,7 @@ describe("handleGitHubWebhook", () => {
     }
   });
 
-  it("returns 404 for a repository with no integration", async () => {
+  it("answers unknown repositories exactly like a bad signature (no enumeration oracle)", async () => {
     createAdminClientMock.mockReturnValue({
       from: vi.fn(() => {
         const q: Record<string, unknown> = {};
@@ -205,7 +205,30 @@ describe("handleGitHubWebhook", () => {
       deliveryId: "d-4",
       event: "workflow_run",
     });
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(401);
+    expect(res.body).toEqual({ error: "Invalid signature." });
+  });
+
+  it("stores a non-https run URL as null (stored-XSS guard, audit addendum 3)", async () => {
+    const body = workflowRunBody({
+      workflow_run: {
+        id: 4243,
+        status: "completed",
+        conclusion: "failure",
+        html_url: "javascript:alert(1)",
+        head_sha: "abc123sha",
+        created_at: "2026-10-20T10:00:00Z",
+      },
+    });
+    const res = await handleGitHubWebhook({
+      rawBody: body,
+      signature: sign(body),
+      deliveryId: "d-js",
+      event: "workflow_run",
+    });
+    expect(res.status).toBe(200);
+    const applied = state.dispatchUpdates.find((u) => u.status === "completed");
+    expect(applied?.github_run_url).toBeNull();
   });
 
   it("treats a duplicate delivery as a no-op (event applied once)", async () => {

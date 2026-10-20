@@ -187,7 +187,10 @@ export async function listCommunityTemplates(
       .select(TEMPLATE_COLUMNS)
       .eq("status", "published");
     if (f.search) {
-      const safe = f.search.replace(/[%_,()]/g, " ").trim();
+      // Strip the PostgREST .or() grammar separators AND every LIKE
+      // wildcard form (%, _, and PostgREST's * alias, plus the escape
+      // character itself) so the interpolated pattern stays literal.
+      const safe = f.search.replace(/[%_,()*\\]/g, " ").trim();
       if (safe) query = query.or(`name.ilike.%${safe}%,description.ilike.%${safe}%`);
     }
     if (f.appType) query = query.eq("app_type", f.appType);

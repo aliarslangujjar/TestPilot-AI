@@ -125,8 +125,10 @@ export async function handleGitHubWebhook(input: {
     .ilike("repo_name", escapeIlike(repo));
   const integrations = (candidates ?? []) as IntegrationRow[];
   if (integrations.length === 0) {
-    // A repository with no TestPilot mapping — not ours to process.
-    return { status: 404, body: { error: "Unknown repository." } };
+    // Uniform with the invalid-signature response below: the endpoint
+    // must not reveal which repositories have integrations configured
+    // (that distinction was an enumeration oracle).
+    return { status: 401, body: { error: "Invalid signature." } };
   }
 
   // The webhook secret that verifies identifies the integration.
@@ -214,7 +216,11 @@ export async function handleGitHubWebhook(input: {
   const patch: Record<string, unknown> = {
     status: mappedStatus,
     github_run_id: run.id,
-    github_run_url: run.html_url ?? null,
+    // The run URL is rendered as an href in the dashboard. Only accept
+    // https URLs from the payload — a webhook-secret holder must not
+    // be able to store a javascript: URL another member clicks.
+    github_run_url:
+      typeof run.html_url === "string" && run.html_url.startsWith("https://") ? run.html_url : null,
     head_sha: run.head_sha ?? null,
   };
   if (mappedStatus === "completed") patch.conclusion = run.conclusion ?? null;

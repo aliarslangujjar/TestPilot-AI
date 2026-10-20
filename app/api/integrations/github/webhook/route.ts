@@ -11,8 +11,18 @@ import { handleGitHubWebhook } from "@/lib/github/webhook";
  */
 export const dynamic = "force-dynamic";
 
+/** Webhook payloads are small JSON documents; cap the accepted body. */
+const MAX_WEBHOOK_BODY_BYTES = 1_048_576;
+
 export async function POST(request: Request): Promise<Response> {
+  const declared = Number(request.headers.get("content-length") ?? "");
+  if (Number.isFinite(declared) && declared > MAX_WEBHOOK_BODY_BYTES) {
+    return Response.json({ error: "Payload too large." }, { status: 413 });
+  }
   const rawBody = await request.text();
+  if (new TextEncoder().encode(rawBody).length > MAX_WEBHOOK_BODY_BYTES) {
+    return Response.json({ error: "Payload too large." }, { status: 413 });
+  }
   const result = await handleGitHubWebhook({
     rawBody,
     signature: request.headers.get("x-hub-signature-256"),

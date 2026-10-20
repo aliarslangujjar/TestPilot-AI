@@ -348,3 +348,63 @@ verified against source; confirmed ones are fixed in migration
   validate-then-scope pattern, each service-role call site, the
   zero-policy secrets/deliveries tables, SECURITY DEFINER
   search-path pinning, and the public-report token design.
+
+## Addendum 3 — full Scope B report (same day)
+
+The web-vulnerabilities/secrets review's full report arrived last
+of the three. Its headline (B-1) is the same backslash open
+redirect as Scope A's F2 — already fixed in addendum 2. Of the
+rest, two were confirmed and fixed, two were already mitigated in
+the current tree (the review's evidence predates those fixes or
+quoted a partial snippet), and the remainder are informational.
+
+### Confirmed and fixed
+
+- **B-2 (MEDIUM) — `.env.worker` was not git-ignored.** The
+  documented worker setup creates it inside the repo holding the
+  service-role key; a routine `git add -A` would have committed
+  that key to a public repository. `.gitignore` now ignores
+  `.env.*` generally, with exceptions for `.env.example` and
+  `.env.*.example` (verified: the worker env file is ignored, its
+  example template is not).
+- **B-3 (LOW) — stored `javascript:` href via webhook run URL.**
+  `github_run_url` was stored verbatim from the webhook payload and
+  rendered as a link. Exploitation required holding an integration's
+  webhook secret, but defense was cheap: the webhook now stores
+  only `https://` URLs, and the read path filters non-https values
+  for rows stored earlier.
+- **B-5 (LOW) — webhook enumeration oracle + unbounded body.** The
+  endpoint answered 404 "Unknown repository" vs 401 "Invalid
+  signature", revealing which repositories have integrations. The
+  unknown-repository response is now byte-identical to the
+  invalid-signature one, and the route rejects bodies over 1 MiB
+  (413) before processing.
+- **B-6 (LOW/INFO) — community search `.or()` interpolation** left
+  PostgREST's `*` wildcard and the `\` escape usable inside the
+  pattern. The sanitizer now strips those too, so the interpolated
+  pattern is fully literal (impact was bounded to the caller's own
+  search over published templates).
+
+### Already mitigated (report evidence superseded)
+
+- **B-4 — error-report flooding:** the endpoint gained a per-IP
+  rate limit in the first audit commit (`0ec9234`), sharing the
+  public-reports limiter. The report's snapshot predates it.
+- **B-7 — avatar URL scheme:** `avatarUrlSchema` already refines to
+  http(s)-only; the report quoted the schema lines above the
+  refine. No change needed.
+
+### Informational
+
+- **B-8 — no global CSP** on the authenticated app remains a
+  documented, deliberate trade-off (inline theme bootstrap), with
+  the public-report route carrying its own strict sandboxed CSP.
+  Revisiting it belongs with the deployment work, not this audit.
+- The Scope B pass verified as sound: the single
+  `dangerouslySetInnerHTML` (a compile-time-constant theme script),
+  React-escaped rendering everywhere else, the public report's
+  escaper + sandbox headers, zero raw SQL, LIKE escaping in every
+  other search, Next's server-action origin checks with no
+  weakening overrides, webhook HMAC ordering and delivery dedupe, a
+  clean tracked-secrets scan, a three-variable `NEXT_PUBLIC_*`
+  surface, and fixed-host-only server egress.

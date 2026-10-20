@@ -93,7 +93,9 @@ function toDispatch(row: DispatchRow): GitHubWorkflowDispatch {
     status: row.status,
     conclusion: row.conclusion,
     githubRunId: row.github_run_id,
-    githubRunUrl: row.github_run_url,
+    // Defense in depth for rows stored before the webhook validated
+    // the scheme: non-https run URLs never reach the rendered href.
+    githubRunUrl: row.github_run_url?.startsWith("https://") ? row.github_run_url : null,
     ref: row.ref,
     error: row.error,
     createdAt: row.created_at,
