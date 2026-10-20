@@ -1,0 +1,80 @@
+name: CI
+
+# Runs on pull requests and on pushes to main. This workflow:
+#   - installs strictly from the lockfile (npm ci)
+#   - checks formatting, lint, and TypeScript
+#   - runs the unit/component test suite (fully mocked — no secrets,
+#     no network services, no paid API keys are needed or used)
+#   - validates migration files (names, ordering, uniqueness)
+#   - performs a production build of the web app
+#
+# Security posture:
+#   - Least privilege: the job token can only READ repository contents.
+#   - No repository secrets are referenced anywhere in this workflow.
+#   - The trigger is `pull_request`, NOT `pull_request_target`, so
+#     pull requests from forks run with a read-only token and never
+#     receive secrets.
+#   - There is deliberately NO deploy job: merging does not deploy
+#     anything to production from CI.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Verify (format, lint, types, tests, build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies (lockfile)
+        run: npm ci
+
+      - name: Check formatting
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: TypeScript check
+        run: npm run typecheck
+
+      - name: Run unit and component tests
+        run: npm run test
+
+      - name: Production build
+        run: npm run build
+
+  migrations:
+    name: Migration validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Validate migration files
+        run: node scripts/validate-migrations.mjs

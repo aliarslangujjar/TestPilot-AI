@@ -1,5 +1,7 @@
 # TestPilot AI
 
+[![CI](https://github.com/aliarslangujjar/TestPilot-AI/actions/workflows/ci.yml/badge.svg)](https://github.com/aliarslangujjar/TestPilot-AI/actions/workflows/ci.yml)
+
 Open-source AI-powered QA SaaS.
 
 > **Status:** active development. Projects, test management, manual and

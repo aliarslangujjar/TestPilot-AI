@@ -42,6 +42,7 @@
   "scripts": {
     "build": "next build",
     "dev": "next dev",
+    "check:migrations": "node scripts/validate-migrations.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint .",

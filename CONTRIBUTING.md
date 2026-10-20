@@ -73,9 +73,30 @@ npx vitest run tests/projects/        # one area
 npx vitest run tests/projects/actions.test.ts -t "creates"   # one test
 ```
 
-There is currently **no CI** on this repository — `npm run verify` on
-your machine is the gate, and reviewers will ask for its result. Please
-make sure it passes before opening a PR.
+### Continuous integration
+
+GitHub Actions (`.github/workflows/ci.yml`) runs on every pull request
+and every push to `main`, and mirrors the local gate:
+
+- `npm ci` (lockfile-strict install) with the npm cache enabled
+- `npm run format:check`, `npm run lint`, `npm run typecheck`
+- `npm run test` (the mocked suite — CI uses no secrets and no paid keys)
+- `npm run check:migrations` (migration filename/order/duplicate checks
+  that are practical without a database; `supabase migration up`
+  against a real Postgres remains the semantic check)
+- `npm run build` (production build)
+
+There is **no deploy job** — CI never deploys a PR (or a merge) to
+production. The workflow runs with a read-only token (`contents: read`)
+and references no repository secrets; fork PRs run via `pull_request`
+(never `pull_request_target`), so they cannot access secrets either.
+
+Run the same checks locally before opening a PR:
+
+```bash
+npm run verify            # typecheck → lint → format:check → test → build
+npm run check:migrations  # migration file validation
+```
 
 ### Test conventions
 
