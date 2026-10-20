@@ -132,4 +132,37 @@ describe.skipIf(!hasBrowser())("playwright driver (integration)", () => {
       await close();
     }
   });
+
+  it("captures bounded console and network diagnostics for failure analysis", async () => {
+    const { port, close } = await startTestServer();
+    try {
+      const driver = createPlaywrightDriver(browser, createNetworkGuard({ allowLoopback: true }), {
+        maxScreenshotBytes: 1_000_000,
+      });
+      const plan = planFor(port, [
+        { action: "goto", url: "/noisy" },
+        {
+          action: "assertText",
+          locator: { by: "role", role: "heading" },
+          text: "does not exist",
+          timeoutMs: 500,
+        },
+      ]);
+      const result = await driver.run(plan);
+      await driver.close();
+
+      // The assertion fails, but the diagnostics gathered during
+      // navigation survive in the result.
+      expect(result.steps[1]?.ok).toBe(false);
+      expect(
+        result.diagnostics.consoleErrors.some((e) => e.includes("widget failed to load")),
+      ).toBe(true);
+      expect(result.diagnostics.networkErrors.some((e) => e.includes("404"))).toBe(true);
+      expect(result.diagnostics.networkErrors.some((e) => e.includes("missing.js"))).toBe(true);
+      expect(result.diagnostics.consoleErrors.length).toBeLessThanOrEqual(5);
+      expect(result.diagnostics.networkErrors.length).toBeLessThanOrEqual(5);
+    } finally {
+      await close();
+    }
+  });
 });

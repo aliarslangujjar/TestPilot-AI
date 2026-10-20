@@ -7,7 +7,7 @@ import type {
   BrowserTestStep,
 } from "../../../packages/schemas/src/browser-test.js";
 
-import { sanitizeError } from "./sanitize.js";
+import { sanitizeError, sanitizeText } from "./sanitize.js";
 import type { NetworkGuard } from "./ssrf.js";
 
 /**
@@ -30,10 +30,32 @@ export interface DriverHooks {
   onStepFailure?: (index: number, screenshot: Buffer | null) => Promise<void>;
 }
 
+/**
+ * Bounded console/network evidence captured during the run. Feeds the
+ * failure-analysis evidence bundle; everything here is sanitized and
+ * capped (no page content, no secrets, no unbounded growth).
+ */
+export interface JobDiagnostics {
+  consoleErrors: string[];
+  networkErrors: string[];
+}
+
+export function emptyDiagnostics(): JobDiagnostics {
+  return { consoleErrors: [], networkErrors: [] };
+}
+
+const MAX_DIAGNOSTIC_ENTRIES = 5;
+const MAX_DIAGNOSTIC_LENGTH = 300;
+
+function pushDiagnostic(list: string[], value: string): void {
+  if (list.length < MAX_DIAGNOSTIC_ENTRIES && value.length > 0) list.push(value);
+}
+
 export interface DriverResult {
   steps: BrowserJobStepResult[];
   cancelled: boolean;
   crashed: boolean;
+  diagnostics: JobDiagnostics;
 }
 
 export interface BrowserDriver {
@@ -164,9 +186,46 @@ export function createPlaywrightDriver(
 
       const page = await context.newPage();
 
+      // Bounded console/network evidence for failure analysis. Errors
+      // only (never full console output), capped count and length, and
+      // sanitized — the same discipline as step-error sanitization.
+      const diagnostics = emptyDiagnostics();
+      page.on("console", (msg) => {
+        if (msg.type() === "error") {
+          pushDiagnostic(
+            diagnostics.consoleErrors,
+            sanitizeText(msg.text(), MAX_DIAGNOSTIC_LENGTH),
+          );
+        }
+      });
+      page.on("pageerror", (err) => {
+        pushDiagnostic(
+          diagnostics.consoleErrors,
+          sanitizeText(err instanceof Error ? err.message : String(err), MAX_DIAGNOSTIC_LENGTH),
+        );
+      });
+      page.on("requestfailed", (req) => {
+        const reason = req.failure()?.errorText ?? "request failed";
+        pushDiagnostic(
+          diagnostics.networkErrors,
+          sanitizeText(`${req.method()} ${req.url()} (${reason})`, MAX_DIAGNOSTIC_LENGTH),
+        );
+      });
+      page.on("response", (res) => {
+        if (res.status() >= 400) {
+          pushDiagnostic(
+            diagnostics.networkErrors,
+            sanitizeText(
+              `${res.status()} ${res.request().method()} ${res.url()}`,
+              MAX_DIAGNOSTIC_LENGTH,
+            ),
+          );
+        }
+      });
+
       for (const [index, step] of plan.steps.entries()) {
         if (hooks.shouldCancel && (await hooks.shouldCancel())) {
-          return { steps, cancelled: true, crashed: false };
+          return { steps, cancelled: true, crashed: false, diagnostics };
         }
         const started = Date.now();
         try {
@@ -196,11 +255,11 @@ export function createPlaywrightDriver(
             await hooks.onStepFailure(index, screenshot);
           }
           if (!browser.isConnected()) crashed = true;
-          return { steps, cancelled: false, crashed };
+          return { steps, cancelled: false, crashed, diagnostics };
         }
       }
 
-      return { steps, cancelled: false, crashed: false };
+      return { steps, cancelled: false, crashed: false, diagnostics };
     },
 
     async close(): Promise<void> {

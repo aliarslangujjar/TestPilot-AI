@@ -161,8 +161,21 @@ as the final backstop.
   `run-detail-manager.test.tsx` — list/filter/empty states, run creation
   flow, outcome saving, complete/reopen locking.
 
+## AI failure analysis (`docs/AI_FAILURE_ANALYSIS.md`)
+
+Failed/timed-out automated results can be analyzed advisory-only —
+analysis never changes an outcome. `lib/ai-analysis/actions.ts` builds
+a bounded, sanitized evidence bundle (failing step, expected/actual,
+browser error, console/network errors captured by the driver,
+screenshot metadata only), then either calls the metered AI service
+(hypotheses-only system prompt; output schema with
+`probableClassification`, required `uncertainty`, and evidence-cited
+fix suggestions) or the deterministic no-AI fallback when no provider
+is configured. The analysis is persisted on the result row with its
+source (`ai` | `fallback`).
+
 ## Not built (deliberate)
 
-- Automated runs (Playwright worker), run deletion UI, result history/audit
-  per result beyond `updated_at`, assigning runs to specific testers,
-  cross-suite run creation in one step (create per suite).
+- Run deletion UI, result history/audit per result beyond `updated_at`,
+  assigning runs to specific testers, cross-suite run creation in one
+  step (create per suite).

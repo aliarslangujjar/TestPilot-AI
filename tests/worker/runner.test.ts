@@ -1,7 +1,11 @@
 /** @vitest-environment node */
 import { describe, expect, it, vi } from "vitest";
 
-import type { BrowserDriver, DriverResult } from "@/workers/playwright/src/driver";
+import {
+  emptyDiagnostics,
+  type BrowserDriver,
+  type DriverResult,
+} from "@/workers/playwright/src/driver";
 import { processJob, reapStaleJobs } from "@/workers/playwright/src/runner";
 import type { WorkerConfig } from "@/workers/playwright/src/config";
 
@@ -38,7 +42,12 @@ function stubDriver(script: {
       script.onHooks?.(hooks);
       if (script.throwError) throw script.throwError;
       if (script.hang) await new Promise(() => undefined);
-      return { steps: script.steps ?? [], cancelled: false, crashed: false };
+      return {
+        steps: script.steps ?? [],
+        cancelled: false,
+        crashed: false,
+        diagnostics: emptyDiagnostics(),
+      };
     },
     async close() {},
   };
@@ -115,6 +124,7 @@ describe("processJob", () => {
           ],
           cancelled: false,
           crashed: false,
+          diagnostics: emptyDiagnostics(),
         };
       },
       async close() {},
@@ -141,6 +151,7 @@ describe("processJob", () => {
             steps: [{ index: 0, action: "goto", ok: true, durationMs: 10 }],
             cancelled: true,
             crashed: false,
+            diagnostics: emptyDiagnostics(),
           };
         }
         throw new Error("should have cancelled");
@@ -199,6 +210,7 @@ describe("processJob", () => {
           steps: [{ index: 0, action: "assertText", ok: false, durationMs: 5 }],
           cancelled: false,
           crashed: false,
+          diagnostics: emptyDiagnostics(),
         };
       },
       async close() {},

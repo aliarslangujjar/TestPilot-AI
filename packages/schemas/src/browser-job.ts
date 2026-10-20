@@ -47,11 +47,21 @@ export const browserJobStepResultSchema = z.object({
 
 export type BrowserJobStepResult = z.infer<typeof browserJobStepResultSchema>;
 
+/** Bounded console/network evidence captured by the worker during a run. */
+export const browserJobDiagnosticsSchema = z.object({
+  consoleErrors: z.array(z.string().max(300)).max(5).default([]),
+  networkErrors: z.array(z.string().max(300)).max(5).default([]),
+});
+
+export type BrowserJobDiagnostics = z.infer<typeof browserJobDiagnosticsSchema>;
+
 export const browserJobResultSchema = z.object({
   status: z.enum(["succeeded", "failed", "cancelled"]),
   steps: z.array(browserJobStepResultSchema),
   /** Storage paths of failure screenshots, if any. */
   artifacts: z.array(z.string().max(500)).default([]),
+  /** Optional: absent on results written before diagnostics existed. */
+  diagnostics: browserJobDiagnosticsSchema.optional(),
   startedAt: z.string(),
   finishedAt: z.string(),
 });

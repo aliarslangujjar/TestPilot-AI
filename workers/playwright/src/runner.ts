@@ -135,6 +135,7 @@ export async function processJob(
           : "failed",
       steps: driverResult.steps,
       artifacts,
+      diagnostics: driverResult.diagnostics,
       startedAt,
       finishedAt,
     };

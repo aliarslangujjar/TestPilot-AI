@@ -24,6 +24,17 @@ export async function startTestServer(): Promise<{
     } else if (url === "/redirect-evil") {
       res.writeHead(302, { location: "http://169.254.169.254/" });
       res.end();
+    } else if (url === "/noisy") {
+      // Console error + late page error + a 404 subresource for
+      // diagnostics capture tests.
+      res.writeHead(200, { "content-type": "text/html" });
+      res.end(
+        `<html><body><h1>Noisy</h1>` +
+          `<script src="/missing.js"></script>` +
+          `<script>console.error("widget failed to load"); ` +
+          `setTimeout(() => { throw new Error("late crash in widget"); }, 10);</script>` +
+          `</body></html>`,
+      );
     } else {
       res.writeHead(404);
       res.end();
