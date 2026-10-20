@@ -7,7 +7,7 @@ import type {
   BrowserTestStep,
 } from "../../../packages/schemas/src/browser-test.js";
 
-import { sanitizeError, sanitizeText } from "./sanitize.js";
+import { sanitizeError, sanitizeText, stripUrlQuery } from "./sanitize.js";
 import type { NetworkGuard } from "./ssrf.js";
 
 /**
@@ -178,10 +178,46 @@ export function createPlaywrightDriver(
         // No extraHTTPHeaders, no storage state, no credentials: the page
         // gets nothing that could leak worker/server secrets.
       });
+      // Every network request passes TWO checks: the plan's host
+      // allowlist (this layer — the schema promises nothing outside
+      // allowedHosts is reachable, and that promise is enforced here,
+      // at runtime, for navigations, subresources, and redirect hops
+      // alike) and the SSRF guard (IP-layer denylist + DNS checks).
+      const allowedHosts = new Set(plan.allowedHosts.map((h) => h.toLowerCase()));
+      const requestAllowed = async (rawUrl: string): Promise<boolean> => {
+        let parsed: URL;
+        try {
+          parsed = new URL(rawUrl);
+        } catch {
+          return false;
+        }
+        // Non-network schemes never leave the browser; they cannot
+        // reach internal services and are not the guard's concern.
+        if (
+          parsed.protocol === "data:" ||
+          parsed.protocol === "blob:" ||
+          parsed.protocol === "about:"
+        ) {
+          return true;
+        }
+        const host = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+        if (!allowedHosts.has(host)) return false;
+        return guard.allowRequest(rawUrl);
+      };
       await context.route("**/*", async (route) => {
-        const allowed = await guard.allowRequest(route.request().url());
-        if (allowed) await route.continue();
+        if (await requestAllowed(route.request().url())) await route.continue();
         else await route.abort("blockedbyclient");
+      });
+      // WebSocket egress bypasses context.route entirely, so it gets
+      // the same two checks through its own interception point.
+      await context.routeWebSocket("**/*", async (ws) => {
+        if (await requestAllowed(ws.url())) {
+          const server = ws.connectToServer();
+          ws.onMessage((message) => server.send(message));
+          server.onMessage((message) => ws.send(message));
+        } else {
+          await ws.close({ code: 4403, reason: "blocked" });
+        }
       });
 
       const page = await context.newPage();
@@ -208,7 +244,10 @@ export function createPlaywrightDriver(
         const reason = req.failure()?.errorText ?? "request failed";
         pushDiagnostic(
           diagnostics.networkErrors,
-          sanitizeText(`${req.method()} ${req.url()} (${reason})`, MAX_DIAGNOSTIC_LENGTH),
+          sanitizeText(
+            `${req.method()} ${stripUrlQuery(req.url())} (${reason})`,
+            MAX_DIAGNOSTIC_LENGTH,
+          ),
         );
       });
       page.on("response", (res) => {
@@ -216,7 +255,7 @@ export function createPlaywrightDriver(
           pushDiagnostic(
             diagnostics.networkErrors,
             sanitizeText(
-              `${res.status()} ${res.request().method()} ${res.url()}`,
+              `${res.status()} ${res.request().method()} ${stripUrlQuery(res.url())}`,
               MAX_DIAGNOSTIC_LENGTH,
             ),
           );

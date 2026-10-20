@@ -77,6 +77,10 @@ describe("validateTemplateContent — URL restrictions", () => {
     ["private 172.16", "Open http://172.16.0.9/internal"],
     ["embedded credentials", "Open https://user:pass@shop.example.com/"],
     ["non-http scheme", "Open ftp://files.example.com/x"],
+    ["IPv6 loopback", "Open http://[::1]/admin"],
+    ["IPv6 unique-local", "Open http://[fd00::1]/internal"],
+    ["IPv6 link-local", "Open http://[fe80::1]/probe"],
+    ["IPv4-mapped IPv6 loopback", "Open http://[::ffff:127.0.0.1]/admin"],
   ])("rejects %s URLs", (_label, action) => {
     const res = validateTemplateContent(
       validContent({ cases: [validCase({ steps: [{ action, expected: "x" }] })] }),

@@ -16,6 +16,8 @@ export function sanitizeError(message: unknown, maxLen = MAX_ERROR_LENGTH): stri
   const cleaned = raw
     .replace(ANSI_PATTERN, "")
     .replace(CONTROL_PATTERN, "")
+    // URLs inside error text lose their query/fragment (may carry tokens).
+    .replace(/https?:\/\/[^\s"']+/g, (match) => stripUrlQuery(match))
     // First line only: Playwright stack blocks start after the first line.
     .split("\n")[0]
     ?.trim()
@@ -25,4 +27,19 @@ export function sanitizeError(message: unknown, maxLen = MAX_ERROR_LENGTH): stri
 
 export function sanitizeText(text: string, maxLen = MAX_RESULT_LENGTH): string {
   return text.replace(ANSI_PATTERN, "").replace(CONTROL_PATTERN, "").trim().slice(0, maxLen);
+}
+
+/**
+ * Reduce a URL to origin + path for diagnostics. Query strings and
+ * fragments can carry tokens (reset links, signed parameters) that
+ * must never persist in job results or be forwarded to an AI provider.
+ * Unparseable values are cut at the first ? or #.
+ */
+export function stripUrlQuery(url: string): string {
+  try {
+    const parsed = new URL(url);
+    return `${parsed.origin}${parsed.pathname}`;
+  } catch {
+    return url.split(/[?#]/)[0] ?? url;
+  }
 }

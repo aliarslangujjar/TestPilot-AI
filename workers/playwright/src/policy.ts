@@ -21,7 +21,13 @@ export async function authorizeJob(store: JobStore, job: JobRow): Promise<Policy
   if (!(await store.projectInWorkspace(job.project_id, job.workspace_id))) {
     return { ok: false, reason: "project is not in the job's workspace" };
   }
-  if (job.created_by && !(await store.isMember(job.workspace_id, job.created_by))) {
+  // Fail closed on a missing creator: every real enqueue path sets
+  // created_by, so a null here means the row did not come through the
+  // app — there is no membership to stand on.
+  if (!job.created_by) {
+    return { ok: false, reason: "job has no recorded creator" };
+  }
+  if (!(await store.isMember(job.workspace_id, job.created_by))) {
     return { ok: false, reason: "the user who enqueued this job is no longer a workspace member" };
   }
   return { ok: true };

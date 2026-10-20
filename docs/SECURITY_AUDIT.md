@@ -193,3 +193,83 @@ DENY`, nosniff, and a strict referrer policy globally, plus a
    stack to test. The six-point deployment verification in
    `docs/DEPLOYMENT.md` plus a staging pentest are the recommended
    next steps before calling anything production-ready.
+
+## Addendum — late-arriving worker-scope report (same day)
+
+The worker/SSRF review pass delivered its full report after the
+audit above was committed. It contained additional findings the
+first summary had not included. Each was verified against source;
+the confirmed ones were fixed in a follow-up commit. This addendum
+supersedes the "Verified sound" notes where they conflict.
+
+### Confirmed and fixed in the addendum
+
+- **MEDIUM — `allowedHosts` was never enforced at runtime.** The
+  plan schema validated goto/baseUrl hosts at parse time, but the
+  driver's route handler consulted only the SSRF guard — in-page
+  navigations, outbound-link clicks, and subresource requests could
+  reach any public host, contradicting the schema's own "nothing
+  outside this list is reachable" contract. **Fix:** the route
+  handler now checks every request's host against the plan's
+  `allowedHosts` before the SSRF guard runs; a hand-built plan
+  bypassing parse validation is blocked in a new driver integration
+  test.
+- **MEDIUM — protocol-relative goto bypassed the parse-time check.**
+  `hostOf("//evil.example/x")` throws without a base, so the value
+  fell into the relative-path branch and passed — then resolved
+  cross-host at runtime. **Fix:** the schema rejects
+  protocol-relative goto targets outright.
+- **MEDIUM — `baseUrl` accepted any scheme.** `file:///etc/` plans
+  validated (empty hostname skipped the allowlist check), turning
+  assertions into a local-file substring oracle with screenshot
+  exfiltration. **Fix:** the schema requires an http(s) baseUrl with
+  a real host.
+- **MEDIUM — SSRF denylist gaps, remainder.** The main fix added
+  most ranges; the addendum completed the set: 224.0.0.0/4
+  (multicast), plus IPv6 NAT64 (`64:ff9b::/96`) and Teredo
+  (`2001::/32`) prefixes.
+- **LOW — WebSocket egress bypassed routing.** `context.route`
+  never sees WebSocket connections. **Fix:** `routeWebSocket`
+  applies the same allowlist + guard checks (blocked sockets close
+  immediately); the production entry point also launches Chromium
+  with `--force-webrtc-ip-handling-policy=disable_non_proxied_udp`
+  to close the WebRTC/ICE channel (no proxy is configured, so this
+  effectively disables direct UDP egress).
+- **LOW — community template validator: IPv6 checks were dead
+  code.** `url.hostname` keeps brackets (`"[::1]"`), so every IPv6
+  comparison missed, and IPv4-mapped forms escaped entirely.
+  **Fix:** brackets stripped before comparison; mapped forms
+  (dotted and WHATWG hex-serialized) judged by their embedded IPv4.
+  Regression tests cover `[::1]`, `[fd00::1]`, `[fe80::1]`,
+  `[::ffff:127.0.0.1]`.
+- **LOW — job-state writes were not claim-fenced.** A worker that
+  lost its lease could overwrite the winning worker's terminal
+  result. **Fix:** the Supabase store's `update` now refuses to
+  modify rows already in a terminal state.
+- **LOW — diagnostic URLs leaked query strings.** Driver network
+  diagnostics recorded full URLs; failure-analysis forwards them to
+  the AI provider, whose redaction patterns don't catch
+  `?token=…`. **Fix:** URLs are reduced to origin + path at capture
+  time (`stripUrlQuery`), and `sanitizeError` strips queries from
+  URLs embedded in error text.
+- **LOW (latent) — worker authorization skipped membership when
+  `created_by` was null.** All enqueue paths set it, but the worker
+  now fails closed on a missing creator (the previous "legacy rows"
+  test expectation was deliberately reversed).
+
+### Still residual after the addendum
+
+- **SSRF TOCTOU (C-4)** stands as recorded in item 2 above — the
+  report correctly notes the two DNS resolutions are fully
+  independent, not merely TTL-skewed. Complete closure requires an
+  egress proxy that pins connections to validated IPs; that is a
+  deployment-architecture decision, documented here rather than
+  papered over.
+- **Reservation leak on process death** (usage): a server process
+  dying mid-reservation strands it until the monthly period resets.
+  Self-inflicted only; accepted.
+- **Rate-limit keying**: the public-report limiter keys on
+  token-hash + IP, so token rotation gets a fresh budget — harmless
+  at 256-bit token entropy. The `x-forwarded-for` trust caveat
+  applies to all in-app limiters; edge configuration should
+  overwrite the header.

@@ -32,9 +32,10 @@ describe("authorizeJob (worker-side, defense in depth)", () => {
     expect(decision.ok).toBe(false);
   });
 
-  it("allows jobs with no recorded creator (legacy rows)", async () => {
+  it("rejects jobs with no recorded creator (fail closed — audit addendum)", async () => {
     const store = makeFakeStore();
-    expect(await authorizeJob(store, makeJob({ created_by: null }))).toEqual({ ok: true });
+    const decision = await authorizeJob(store, makeJob({ created_by: null }));
+    expect(decision.ok).toBe(false);
   });
 });
 

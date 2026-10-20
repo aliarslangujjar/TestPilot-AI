@@ -177,3 +177,29 @@ describe("browser-test spec", () => {
     }
   });
 });
+
+describe("browser-test spec — audit addendum (scheme & allowlist integrity)", () => {
+  it("rejects non-http(s) baseUrl schemes (file:, javascript:, data:)", () => {
+    for (const baseUrl of ["file:///etc/passwd", "javascript:alert(1)", "data:text/html,hi"]) {
+      const result = parseBrowserTestPlan(
+        validPlan({ baseUrl, allowedHosts: ["app.example.com"] }),
+      );
+      expect(result.ok).toBe(false);
+    }
+  });
+
+  it("rejects a protocol-relative goto (would bypass the host check)", () => {
+    const result = parseBrowserTestPlan(
+      validPlan({ steps: [{ action: "goto", url: "//evil.example.com/phish" }] }),
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.errors.join(" ")).toMatch(/Protocol-relative/);
+  });
+
+  it("still accepts an allowlisted absolute goto", () => {
+    const result = parseBrowserTestPlan(
+      validPlan({ steps: [{ action: "goto", url: "https://app.example.com/login" }] }),
+    );
+    expect(result.ok).toBe(true);
+  });
+});

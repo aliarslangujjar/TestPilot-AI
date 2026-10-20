@@ -194,8 +194,31 @@ export const browserTestPlanSchema = z
   .superRefine((plan, ctx) => {
     const allowed = new Set(plan.allowedHosts.map((h) => h.toLowerCase()));
 
+    // baseUrl must be an absolute http(s) URL with a real host. Other
+    // schemes (file:, data:, javascript:) are never valid test targets,
+    // and a hostless URL would silently skip the allowlist check below.
+    let baseProtocol: string | null;
+    try {
+      baseProtocol = new URL(plan.baseUrl).protocol;
+    } catch {
+      baseProtocol = null;
+    }
+    if (baseProtocol !== "http:" && baseProtocol !== "https:") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["baseUrl"],
+        message: "baseUrl must be an http(s) URL.",
+      });
+    }
+
     const baseHost = hostOf(plan.baseUrl);
-    if (baseHost && !allowed.has(baseHost)) {
+    if (!baseHost) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["baseUrl"],
+        message: "baseUrl must have a host.",
+      });
+    } else if (!allowed.has(baseHost)) {
       ctx.addIssue({
         code: "custom",
         path: ["baseUrl"],
@@ -205,6 +228,17 @@ export const browserTestPlanSchema = z
 
     plan.steps.forEach((step, i) => {
       if (step.action !== "goto") return;
+      // Protocol-relative URLs ("//host/path") inherit the base scheme
+      // at runtime and would bypass the host check (hostOf throws on
+      // them without a base), so they are rejected outright.
+      if (step.url.startsWith("//")) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["steps", i, "url"],
+          message: "Protocol-relative navigation targets are not allowed.",
+        });
+        return;
+      }
       const host = hostOf(step.url);
       if (host) {
         if (!allowed.has(host)) {

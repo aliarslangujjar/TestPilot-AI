@@ -37,6 +37,20 @@ describe("network guard (SSRF boundary)", () => {
     expect(await g2.allowRequest("http://e.test/")).toBe(true);
   });
 
+  it("blocks multicast, NAT64, and Teredo (audit addendum)", async () => {
+    const { guard } = guardWithDns({
+      "mc.test": ["239.1.1.1"],
+      "nat64.test": ["64:ff9b::101:101"],
+      "teredo.test": ["2001:0000:4136:e378:8000:63bf:3fff:fdd2"],
+    });
+    for (const host of ["mc.test", "nat64.test", "teredo.test"]) {
+      expect(await guard.allowRequest(`http://${host}/`)).toBe(false);
+    }
+    // A global IPv6 address outside those prefixes stays allowed.
+    const { guard: g2 } = guardWithDns({ "v6.test": ["2606:4700:4700::1111"] });
+    expect(await g2.allowRequest("http://v6.test/")).toBe(true);
+  });
+
   it("blocks the special-registry ranges added in the 2026-10-20 audit", async () => {
     const { guard } = guardWithDns({
       "cgnat.test": ["100.64.0.1"],

@@ -109,7 +109,14 @@ export function createSupabaseJobStore(config: WorkerConfig): JobStore {
     },
 
     async update(id, patch): Promise<void> {
-      const { error } = await client.from(TABLE).update(patch).eq("id", id);
+      // Terminal-state fence: a worker that lost its lease (host stall,
+      // reaped, another worker completed the job) must not overwrite
+      // the winner's terminal state or result with its own late write.
+      const { error } = await client
+        .from(TABLE)
+        .update(patch)
+        .eq("id", id)
+        .not("status", "in", '("succeeded","failed","cancelled")');
       if (error) throw new Error(`update failed: ${error.message}`);
     },
 

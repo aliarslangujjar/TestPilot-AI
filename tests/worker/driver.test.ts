@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { chromium, type Browser } from "playwright";
 
-import { parseBrowserTestPlan } from "@schemas/browser-test";
+import { parseBrowserTestPlan, type BrowserTestPlan } from "@schemas/browser-test";
 
 import { createPlaywrightDriver } from "@/workers/playwright/src/driver";
 import { createNetworkGuard } from "@/workers/playwright/src/ssrf";
@@ -71,6 +71,33 @@ describe.skipIf(!hasBrowser())("playwright driver (integration)", () => {
       expect(result.crashed).toBe(false);
       expect(result.steps).toHaveLength(8);
       expect(result.steps.every((s) => s.ok)).toBe(true);
+    } finally {
+      await close();
+    }
+  });
+
+  it("enforces allowedHosts at RUNTIME, not just at parse time (audit addendum)", async () => {
+    const { port, close } = await startTestServer();
+    try {
+      const driver = createPlaywrightDriver(browser, createNetworkGuard({ allowLoopback: true }), {
+        maxScreenshotBytes: 1_000_000,
+      });
+      // Hand-built plan (bypasses parse-time validation on purpose):
+      // the goto targets "localhost" while only "127.0.0.1" is
+      // allowlisted. The SSRF guard alone would ALLOW this (loopback
+      // test flag) — the driver's host check is what must block it.
+      const plan: BrowserTestPlan = {
+        version: "1",
+        name: "runtime-allowlist",
+        description: "",
+        baseUrl: `http://127.0.0.1:${port}`,
+        allowedHosts: ["127.0.0.1"],
+        steps: [{ action: "goto", url: `http://localhost:${port}/login` }],
+      };
+      const result = await driver.run(plan);
+      await driver.close();
+      expect(result.steps).toHaveLength(1);
+      expect(result.steps[0]?.ok).toBe(false);
     } finally {
       await close();
     }

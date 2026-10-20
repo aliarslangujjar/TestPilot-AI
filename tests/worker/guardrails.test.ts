@@ -4,7 +4,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-import { sanitizeError, sanitizeText } from "@/workers/playwright/src/sanitize";
+import { sanitizeError, sanitizeText, stripUrlQuery } from "@/workers/playwright/src/sanitize";
 import {
   installedPlaywrightVersion,
   PINNED_PLAYWRIGHT_VERSION,
@@ -31,6 +31,15 @@ describe("sanitize", () => {
 
   it("sanitizes free text without newlines", () => {
     expect(sanitizeText("  hello\u0007world  ")).toBe("helloworld");
+  });
+  it("strips query strings and fragments from URLs (audit addendum)", () => {
+    expect(stripUrlQuery("https://app.example/reset?token=abc123&sig=zzz#frag")).toBe(
+      "https://app.example/reset",
+    );
+    expect(stripUrlQuery("not a url?token=abc")).toBe("not a url");
+    expect(
+      sanitizeError("page.goto failed at https://app.example/reset?token=abc123 (timeout)"),
+    ).toBe("page.goto failed at https://app.example/reset (timeout)");
   });
 });
 

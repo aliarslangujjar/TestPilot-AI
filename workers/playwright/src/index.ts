@@ -41,7 +41,14 @@ async function main(): Promise<void> {
   // One browser process per worker; a FRESH context per job (isolation).
   // chromiumSandbox stays on in production: the worker runs non-privileged
   // and the sandbox must not be traded away for container convenience.
-  const browser = await chromium.launch({ chromiumSandbox: config.chromiumSandbox });
+  const browser = await chromium.launch({
+    chromiumSandbox: config.chromiumSandbox,
+    args: [
+      // WebRTC/ICE egress bypasses HTTP routing entirely; restrict it
+      // to proxied UDP (there is no proxy here, so effectively off).
+      "--force-webrtc-ip-handling-policy=disable_non_proxied_udp",
+    ],
+  });
   console.log(
     `worker ${config.workerId} started (node ${process.version}, playwright pinned, chromium ${await browser.version()}, lanes ${config.maxParallelJobs})`,
   );

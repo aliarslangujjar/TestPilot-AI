@@ -33,7 +33,9 @@ const EXECUTABLE_PATTERNS: Array<{ pattern: RegExp; label: string }> = [
 ];
 
 function isForbiddenHost(hostname: string): boolean {
-  const host = hostname.toLowerCase();
+  // WHATWG URL keeps brackets on IPv6 literals ("[::1]"); strip them or
+  // every IPv6 comparison below silently misses.
+  const host = hostname.toLowerCase().replace(/^\[|\]$/g, "");
   if (host === "localhost" || host.endsWith(".local") || host === "metadata.google.internal") {
     return true;
   }
@@ -46,6 +48,17 @@ function isForbiddenHost(hostname: string): boolean {
       host.startsWith("fd")
     ) {
       return true;
+    }
+    // IPv4-mapped IPv6: judge the embedded IPv4. WHATWG serialization
+    // renders it either dotted ("::ffff:127.0.0.1") or as two hex
+    // groups ("::ffff:7f00:1") depending on the input form.
+    const mappedDotted = host.match(/^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/);
+    if (mappedDotted?.[1]) return isForbiddenHost(mappedDotted[1]);
+    const mappedHex = host.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
+    if (mappedHex?.[1] && mappedHex[2]) {
+      const hi = Number.parseInt(mappedHex[1], 16);
+      const lo = Number.parseInt(mappedHex[2], 16);
+      return isForbiddenHost(`${hi >> 8}.${hi & 0xff}.${lo >> 8}.${lo & 0xff}`);
     }
     return false;
   }

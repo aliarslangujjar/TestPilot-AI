@@ -87,6 +87,7 @@ function isBlockedIpv4(ip: string, allowLoopback: boolean): boolean {
   if (inCidr(value, "198.51.100.0", 24)) return true; // TEST-NET-2 (documentation)
   if (inCidr(value, "203.0.113.0", 24)) return true; // TEST-NET-3 (documentation)
   if (inCidr(value, "240.0.0.0", 4)) return true; // reserved (includes 255.255.255.255 broadcast)
+  if (inCidr(value, "224.0.0.0", 4)) return true; // multicast — never a test target
   return false;
 }
 
@@ -101,6 +102,12 @@ function isBlockedIpv6(ip: string, allowLoopback: boolean): boolean {
   if (Number.isNaN(firstInt)) return true; // unparseable: fail closed
   if ((firstInt & 0xffc0) === 0xfe80) return true; // fe80::/10 link-local
   if ((firstInt & 0xfe00) === 0xfc00) return true; // fc00::/7 unique-local
+  // NAT64 well-known prefix 64:ff9b::/96 embeds an IPv4 target — the
+  // translation gateway would reach whatever the v4 side reaches.
+  const second = lower.split(":")[1] ?? "";
+  if (firstInt === 0x64 && Number.parseInt(second, 16) === 0xff9b) return true;
+  // Teredo 2001:0000::/32 tunnels IPv4 in IPv6.
+  if (firstInt === 0x2001 && Number.parseInt(second, 16) === 0) return true;
   return false;
 }
 
