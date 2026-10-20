@@ -2,21 +2,22 @@
 
 Open-source AI-powered QA SaaS.
 
-> **Status:** project scaffold only. The repository structure, tooling, and
-> documentation are in place — **no product features have been implemented
-> yet**. See [docs/PROJECT_CONTEXT.md](docs/PROJECT_CONTEXT.md) for the
-> architecture direction and current status.
+> **Status:** active development. Projects, test management, manual and
+> automated execution, AI-assisted generation/review/analysis, public QA
+> reports, and a community template library are implemented. See
+> [docs/PROJECT_CONTEXT.md](docs/PROJECT_CONTEXT.md) and
+> [docs/PHASE_STATUS.md](docs/PHASE_STATUS.md) for the current state.
 
 ## Stack
 
-| Layer      | Choice                                                              |
-| ---------- | ------------------------------------------------------------------- |
-| Web app    | Next.js 16 (App Router) + React 19 + TypeScript (strict)            |
-| Styling    | Tailwind CSS v4 + shadcn/ui (new-york theme tokens, `cn()` util)    |
-| Validation | zod v4 shared schemas in `packages/schemas`                         |
-| Database   | Supabase (PostgreSQL) — migrations in `supabase/migrations`         |
-| Test runs  | Playwright worker — `workers/playwright` (planned, not implemented) |
-| Quality    | ESLint (Next.js plugin) + Prettier + `tsc --noEmit` + Vitest        |
+| Layer      | Choice                                                           |
+| ---------- | ---------------------------------------------------------------- |
+| Web app    | Next.js 16 (App Router) + React 19 + TypeScript (strict)         |
+| Styling    | Tailwind CSS v4 + shadcn/ui (new-york theme tokens, `cn()` util) |
+| Validation | zod v4 shared schemas in `packages/schemas`                      |
+| Database   | Supabase (PostgreSQL) — migrations in `supabase/migrations`      |
+| Test runs  | Playwright worker — `workers/playwright`                         |
+| Quality    | ESLint (Next.js plugin) + Prettier + `tsc --noEmit` + Vitest     |
 
 ## Repository layout
 
@@ -25,8 +26,8 @@ app/                    Next.js App Router web app
 components/ui/          shadcn/ui primitives (button included as setup proof)
 lib/                    shared web-app utilities (cn())
 packages/schemas/      shared zod schemas (via @schemas/* alias)
-workers/playwright/    future test-execution worker (README only for now)
-supabase/migrations/   database migrations (none yet)
+workers/playwright/    Playwright test-execution worker
+supabase/migrations/   versioned database migrations
 tests/                  vitest smoke tests
 docs/                   project documentation
 ```
@@ -71,9 +72,17 @@ A fresh clone should pass `npm run verify` end to end.
 
 ## Contributing
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, testing, branching,
+and pull-request guidance (including good-first-issue pointers) — the
+short version:
+
 - TypeScript strict mode; no `any` without justification.
 - Conventional Commits (`feat:`, `fix:`, `chore:`, `docs:` …).
 - Run `npm run verify` before opening a PR.
+
+Participation is governed by the [Code of Conduct](CODE_OF_CONDUCT.md).
+Security issues: report privately — see [SECURITY.md](SECURITY.md),
+never a public issue.
 
 ## License
 

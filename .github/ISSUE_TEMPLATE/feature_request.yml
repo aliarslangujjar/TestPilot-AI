@@ -1,0 +1,45 @@
+name: Feature request
+description: Suggest a new capability or an improvement.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the suggestion! It helps to check docs/ROADMAP.md
+        first — larger features are sequenced there, and requests that
+        explain the problem behind the feature get the most traction.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the workflow or pain point, not just the solution you have in mind.
+      placeholder: As a QA engineer, I currently have to … which is painful because …
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: How should it work? Where in the product would it live?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other approaches, workarounds you use today, or why existing features don't cover it.
+    validations:
+      required: false
+  - type: checkboxes
+    id: guardrails
+    attributes:
+      label: Project guardrails
+      description: These are hard constraints in this project — feature requests need to fit inside them.
+      options:
+        - label: This does not require disabling RLS, weakening workspace authorization, or exposing secrets.
+          required: true
+        - label: This does not require arbitrary code execution or relaxing the browser-test restrictions (declared hosts only, no page.evaluate).
+          required: true
+        - label: I understand new AI behavior must keep the human review gate — generated content is never silently treated as approved or executed coverage.
+          required: true

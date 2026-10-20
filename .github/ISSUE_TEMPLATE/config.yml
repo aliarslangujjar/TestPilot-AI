@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability (report privately — do not open an issue)
+    url: https://github.com/aliarslangujjar/TestPilot-AI/blob/main/SECURITY.md
+    about: Vulnerabilities must be reported through GitHub's private reporting, never in a public issue.
+  - name: Contributing guide
+    url: https://github.com/aliarslangujjar/TestPilot-AI/blob/main/CONTRIBUTING.md
+    about: Setup, tests, branching, PR expectations, and good-first-issue guidance.
+  - name: Project documentation
+    url: https://github.com/aliarslangujjar/TestPilot-AI/tree/main/docs
+    about: Architecture, database, auth, and feature docs — answers many "how does it work" questions.

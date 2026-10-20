@@ -1,0 +1,76 @@
+name: Bug report
+description: Something is broken or behaving unexpectedly.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Before you submit: search existing issues
+        first, and please **do not** use this form for security
+        vulnerabilities — report those privately per SECURITY.md.
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: A clear description of the bug.
+      placeholder: What did you see, and what did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The smallest set of steps that makes it happen.
+      placeholder: |
+        1. Sign in and open …
+        2. Click …
+        3. See error …
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Where does the bug live?
+      options:
+        - Web app / dashboard
+        - Auth / workspaces
+        - Test management (suites, cases, runs)
+        - AI features
+        - Playwright worker
+        - Public reports / community templates
+        - Database / migrations
+        - Documentation
+        - Other / not sure
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Node.js version (`node --version`), browser if relevant, and whether you used the local Supabase stack or a hosted project.
+      placeholder: |
+        OS: …
+        Node: …
+        Browser: …
+        Supabase: local stack / hosted
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      description: Console errors, server logs, or screenshots. **Redact secrets** — no API keys, tokens, passwords, or personal data.
+      render: text
+    validations:
+      required: false
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and this is not a duplicate.
+          required: true
+        - label: I removed any secrets or personal data from this report.
+          required: true
