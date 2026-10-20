@@ -14,9 +14,12 @@ export interface JobRow {
   id: string;
   workspace_id: string;
   project_id: string;
+  run_id: string | null;
+  test_case_id: string | null;
   idempotency_key: string;
   plan: unknown;
   status: "queued" | "running" | "succeeded" | "failed" | "cancelled";
+  failure_kind: "assertion" | "infra" | "timeout" | null;
   attempts: number;
   max_attempts: number;
   cancel_requested: boolean;

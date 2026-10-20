@@ -32,6 +32,7 @@ const RUN: TestRunWithSummary = {
   name: "Sprint 1",
   source: "manual",
   status: "in_progress",
+  executionStatus: null,
   notes: null,
   createdBy: null,
   createdAt: "2026-10-18T10:00:00.000Z",

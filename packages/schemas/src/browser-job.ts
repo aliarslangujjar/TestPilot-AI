@@ -19,9 +19,15 @@ export const browserJobStatusSchema = z.enum([
 
 export type BrowserJobStatus = z.infer<typeof browserJobStatusSchema>;
 
+export const browserJobFailureKindSchema = z.enum(["assertion", "infra", "timeout"]);
+export type BrowserJobFailureKind = z.infer<typeof browserJobFailureKindSchema>;
+
 export const enqueueBrowserJobSchema = z.object({
   workspaceId: z.string().uuid(),
   projectId: z.string().uuid(),
+  /** Optional link to the automated run and case this job executes for. */
+  runId: z.string().uuid().optional(),
+  testCaseId: z.string().uuid().optional(),
   /** The v1 browser-test plan. Validated again by the worker. */
   plan: browserTestPlanSchema,
   /** Idempotency key: re-enqueueing the same key returns the existing job. */
@@ -56,9 +62,14 @@ export const browserJobSchema = z.object({
   id: z.string().uuid(),
   workspaceId: z.string().uuid(),
   projectId: z.string().uuid(),
+  /** The automated run and case this job executes for (when run-linked). */
+  runId: z.string().uuid().nullable(),
+  testCaseId: z.string().uuid().nullable(),
   idempotencyKey: z.string(),
   plan: browserTestPlanSchema,
   status: browserJobStatusSchema,
+  /** How the final failure classified: timeouts surface as run `timed_out`. */
+  failureKind: browserJobFailureKindSchema.nullable(),
   attempts: z.number().int().min(0),
   maxAttempts: z.number().int().min(1).max(5),
   cancelRequested: z.boolean(),

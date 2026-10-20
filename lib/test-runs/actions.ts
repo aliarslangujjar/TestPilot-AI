@@ -11,6 +11,7 @@ import {
   updateResultSchema,
   type CaseSnapshot,
   type CreateRunInput,
+  type ExecutionStatus,
   type ResultOutcome,
   type RunResult,
   type RunStatus,
@@ -40,9 +41,9 @@ const PROJECT_NOT_FOUND = "Project not found.";
 const UNEXPECTED = "Something went wrong. Please try again.";
 
 const RUN_COLUMNS =
-  "id,workspace_id,project_id,suite_id,name,source,status,notes,created_by,created_at,updated_at,completed_at";
+  "id,workspace_id,project_id,suite_id,name,source,status,execution_status,notes,created_by,created_at,updated_at,completed_at";
 const RESULT_COLUMNS =
-  "id,run_id,workspace_id,test_case_id,snapshot,outcome,notes,executed_by,executed_at,created_at,updated_at";
+  "id,run_id,workspace_id,test_case_id,snapshot,outcome,browser_job_id,execution_status,artifacts,notes,executed_by,executed_at,created_at,updated_at";
 
 interface TestRunRow {
   id: string;
@@ -52,6 +53,7 @@ interface TestRunRow {
   name: string;
   source: "manual" | "automated";
   status: RunStatus;
+  execution_status: ExecutionStatus | null;
   notes: string | null;
   created_by: string | null;
   created_at: string;
@@ -78,6 +80,9 @@ interface RunResultRow {
   test_case_id: string | null;
   snapshot: CaseSnapshot;
   outcome: ResultOutcome;
+  browser_job_id: string | null;
+  execution_status: ExecutionStatus | null;
+  artifacts: string[];
   notes: string | null;
   executed_by: string | null;
   executed_at: string | null;
@@ -94,6 +99,7 @@ function toTestRun(row: TestRunRow): TestRun {
     name: row.name,
     source: row.source,
     status: row.status,
+    executionStatus: row.execution_status,
     notes: row.notes,
     createdBy: row.created_by,
     createdAt: row.created_at,
@@ -110,6 +116,9 @@ function toRunResult(row: RunResultRow): RunResult {
     testCaseId: row.test_case_id,
     snapshot: row.snapshot,
     outcome: row.outcome,
+    browserJobId: row.browser_job_id,
+    executionStatus: row.execution_status,
+    artifacts: row.artifacts ?? [],
     notes: row.notes,
     executedBy: row.executed_by,
     executedAt: row.executed_at,

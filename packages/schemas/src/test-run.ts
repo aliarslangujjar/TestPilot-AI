@@ -17,6 +17,21 @@ export type RunStatus = z.infer<typeof runStatusSchema>;
 export const resultOutcomeSchema = z.enum(["unexecuted", "pass", "fail", "blocked", "skipped"]);
 export type ResultOutcome = z.infer<typeof resultOutcomeSchema>;
 
+/**
+ * Automation lifecycle for automated runs and their results, persisted
+ * separately from the manual run status. `passed` is only ever set from
+ * validated worker evidence (see lib/test-runs/automated.ts).
+ */
+export const executionStatusSchema = z.enum([
+  "queued",
+  "running",
+  "passed",
+  "failed",
+  "cancelled",
+  "timed_out",
+]);
+export type ExecutionStatus = z.infer<typeof executionStatusSchema>;
+
 /** Frozen copy of a test case taken when the run is created. */
 export const caseSnapshotSchema = z.object({
   title: z.string(),
@@ -62,6 +77,7 @@ export const testRunSchema = z.object({
   name: z.string(),
   source: runSourceSchema,
   status: runStatusSchema,
+  executionStatus: executionStatusSchema.nullable(),
   notes: z.string().nullable(),
   createdBy: z.string().nullable(),
   createdAt: z.string(),
@@ -87,6 +103,9 @@ export const runResultSchema = z.object({
   testCaseId: z.string().nullable(),
   snapshot: caseSnapshotSchema,
   outcome: resultOutcomeSchema,
+  browserJobId: z.string().nullable(),
+  executionStatus: executionStatusSchema.nullable(),
+  artifacts: z.array(z.string()),
   notes: z.string().nullable(),
   executedBy: z.string().nullable(),
   executedAt: z.string().nullable(),

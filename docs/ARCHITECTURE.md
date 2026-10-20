@@ -132,27 +132,48 @@ schema changes. No ad-hoc DDL against any shared database.
 
 ## 5. Background browser execution (Playwright worker)
 
-Status: ⬜ **planned — not implemented.** This section is the design target;
-nothing here exists in code.
+Status: ✅ **implemented** — the worker (`workers/playwright/`), the job
+queue (`browser_jobs`), and the automated-run bridge
+(`lib/test-runs/automated.ts`) all exist. Threat boundaries:
+`docs/BROWSER_WORKER.md`. The worker is **not yet deployed and has not
+been run end-to-end against a live Supabase queue** — that remains an
+explicit, unverified label.
 
-- **Topology:** the worker is a separate, long-running Node.js process (its
-  own deployable and scaling unit), independent of the web app's lifecycle.
-- **Job lifecycle:** `queued → claimed → running → succeeded | failed`,
+- **Topology:** a separate, long-running Node.js process (own deployable,
+  own scaling unit), independent of the web app's lifecycle.
+- **Job lifecycle:** `queued → running → succeeded | failed | cancelled`,
   persisted in Postgres so a crashed worker never loses a job's state.
-  Claiming is atomic (one worker owns a job).
-- **Execution:** each run gets an isolated Playwright browser context
-  (fresh storage state per run); runs are time-boxed and resource-limited.
-- **Result reporting:** the worker posts structured results (validated
-  against `@schemas/*`) to the web app's API or directly to Postgres via the
-  service role — the exact sink is an open decision (see PROJECT_CONTEXT §6).
-- **Failure handling:** browser crashes, timeouts, and infra errors are
-  reported as run outcomes with logs/artifacts attached, never swallowed.
-- **What the worker never does:** serve HTTP UI, hold user sessions, or write
-  outside its result-reporting contract.
-
-Expected dependencies when commissioned: `playwright`,
-`@supabase/supabase-js`, `zod`. No worker code, manifest, or lockfile exists
-today — adding them is ROADMAP Phase 4.
+  Claims are atomic (a conditional UPDATE — exactly one worker wins),
+  leases carry heartbeats, and stale leases are reaped back to `queued`
+  (or `failed` when attempts are exhausted). Enqueue is idempotent on
+  `(workspace_id, idempotency_key)`.
+- **Automated runs:** an automated test run snapshots its cases like a
+  manual run, then enqueues one job per case (key
+  `run:<runId>:case:<caseId>`), linked by `run_id` / `test_case_id`.
+  Each case needs a saved v1 plan (`browser_plans`, one per case).
+  The worker records `failure_kind` on final failures: `assertion`
+  (deterministic — never retried), `infra`, or `timeout` (retried while
+  attempts remain).
+- **Run state sync:** `refreshAutomatedRun` maps job state into persisted
+  run state (`queued | running | passed | failed | cancelled | timed_out`
+  on `test_runs.execution_status` and each `run_results` row). The sync
+  is idempotent — receiving the same worker result twice changes
+  nothing. A result is marked `passed` ONLY when the job's stored
+  result validates against the result schema, covers exactly the
+  plan's steps, and has every step ok: **never a pass without valid
+  worker evidence.** Sanitized artifact references (storage paths
+  only, capped) are copied onto the result.
+- **Execution:** each job gets an isolated Playwright browser context
+  (no storage state, no secret headers); jobs are time-boxed and
+  resource-limited; the SSRF guard blocks private/loopback/link-local/
+  metadata destinations with per-request DNS + redirect revalidation.
+- **Cancellation:** authorized (members only). The cancel flag is set
+  via the service role after a membership check; the worker honours it
+  cooperatively between steps; a still-queued job with the flag is
+  settled as cancelled because its steps can never execute.
+- **What the worker never does:** serve HTTP UI, hold user sessions,
+  execute arbitrary JavaScript or shell commands, or write anything
+  except job results and bounded artifacts.
 
 ## 6. Coding conventions
 

@@ -4,9 +4,12 @@ Run existing test cases and record outcomes. UI: `/dashboard/projects/[projectId
 (list, linked from each project row) and `/dashboard/projects/[projectId]/runs/[runId]`
 (detail).
 
-Automated browser execution is **deferred** — every run created today is
-`source = 'manual'`, and the UI labels it as such. The `source` column already
-distinguishes the two for when the Playwright worker lands.
+Automated browser execution is **implemented** via the Playwright
+worker (`docs/BROWSER_WORKER.md`). Runs with `source = 'automated'`
+enqueue one browser job per test case; the worker executes the case's
+saved v1 plan and writes sanitized results back to the job row, and
+`refreshAutomatedRun` syncs that state into the run. Manual runs are
+unchanged.
 
 ## Data model
 
@@ -32,6 +35,75 @@ source of truth for what was executed.
 
 **RLS:** members-only on both tables via `is_workspace_member(workspace_id)`
 (select/insert/update/delete), same pattern as the other domain tables.
+
+## Automated runs (`lib/test-runs/automated.ts`)
+
+**Prerequisite:** each case needs a saved v1 browser plan
+(`browser_plans`, migration `20261019150000`, one row per
+`test_case_id`, members-only RLS). A case without a plan cannot join an
+automated run — creation is refused with the case titles, never a
+silent drop.
+
+**Data additions** (`20261019150000`):
+
+- `test_runs.execution_status` — the automation lifecycle:
+  `queued | running | passed | failed | cancelled | timed_out`
+  (nullable; only automated runs carry it). The manual
+  `in_progress | completed` lifecycle column is untouched.
+- `run_results.browser_job_id` (nullable FK, unique where set — the
+  idempotency anchor: one job feeds at most one result),
+  `run_results.execution_status` (same six states, nullable),
+  `run_results.artifacts` (sanitized storage paths, copied from the
+  worker's result, capped at 5 × 500 chars).
+- `browser_jobs.run_id` / `test_case_id` (link the job to its run
+  result) and `browser_jobs.failure_kind`
+  (`assertion | infra | timeout`, set by the worker on final failure).
+
+**State machine** — job → result mapping (`refreshAutomatedRun`):
+
+| Job state                                   | Result state | Outcome |
+| ------------------------------------------- | ------------ | ------- |
+| `queued` (no cancel)                        | `queued`     | —       |
+| `queued` + `cancel_requested`               | `cancelled`  | —       |
+| `running`                                   | `running`    | —       |
+| `cancelled`                                 | `cancelled`  | —       |
+| `succeeded` + valid evidence                | `passed`     | `pass`  |
+| `succeeded` + invalid evidence              | `failed`     | `fail`  |
+| `failed` + `failure_kind = timeout`         | `timed_out`  | `fail`  |
+| `failed` + `failure_kind = assertion/infra` | `failed`     | `fail`  |
+
+The **evidence gate**: `passed` is only set when the job's stored
+result parses against the result schema, reports `succeeded`, covers
+exactly the plan's step count, and has every step `ok`. Anything else
+is a failure — a run is **never marked passed without valid worker
+evidence**. Outcomes for `cancelled` stay `unexecuted`: the test did
+not run.
+
+**Run rollup** — `running > queued > failed > timed_out > cancelled >
+passed`. When every result is terminal, the run's `status` moves to
+`completed` and `completed_at` is stamped once (never rewritten).
+
+**Idempotency** — the sync only writes rows whose state actually
+changes; re-syncing the same worker result is a no-op. Enqueue uses
+deterministic keys (`run:<runId>:case:<caseId>`), so re-submission
+cannot double-enqueue. Retries are bounded by the worker
+(`max_attempts`, default 2, infra/timeout only — never assertions).
+
+**Cancellation** — `cancelAutomatedRun` (members only): sets
+`cancel_requested` via the service-role client after a membership
+check (members have no UPDATE policy on `browser_jobs`), then runs a
+sync pass. The worker honours cancellation before the first step, so
+a flagged job can never execute again.
+
+**Server actions** (`lib/test-runs/automated.ts`):
+
+| Action                | Notes                                                                                                                                   |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `saveBrowserPlan`     | Validates the plan against the v1 schema → membership → case scoping → upserts `browser_plans`                                          |
+| `getBrowserPlan`      | Returns the plan (re-validated), or null                                                                                                |
+| `createAutomatedRun`  | Validates → membership → requires a plan for every case → snapshots cases → enqueues jobs → links results to jobs; cleans up on failure |
+| `refreshAutomatedRun` | Idempotent sync of job state into run state; the only path to `passed`; completes the run when all results are terminal                 |
+| `cancelAutomatedRun`  | Membership-checked cancellation of non-terminal jobs via the service role, then a sync pass                                             |
 
 ## Lifecycle and transitions
 

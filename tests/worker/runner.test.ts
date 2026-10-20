@@ -188,6 +188,57 @@ describe("processJob", () => {
     expect(outcome).toBe("retried");
     expect(store.jobs.get(job.id)?.status).toBe("queued");
   });
+
+  it("records failure_kind: assertion for step failures, timeout for exhausted timeouts, infra for crashes", async () => {
+    const store = makeFakeStore();
+    const assertionJob = makeJob({ id: "job-assert", idempotency_key: "k-assert" });
+    store.jobs.set(assertionJob.id, assertionJob);
+    const failingDriver: BrowserDriver = {
+      async run() {
+        return {
+          steps: [{ index: 0, action: "assertText", ok: false, durationMs: 5 }],
+          cancelled: false,
+          crashed: false,
+        };
+      },
+      async close() {},
+    };
+    expect(await processJob(store, failingDriver, testConfig(), assertionJob)).toBe("failed");
+    expect(store.jobs.get(assertionJob.id)?.failure_kind).toBe("assertion");
+
+    const timeoutJob = makeJob({
+      id: "job-timeout",
+      idempotency_key: "k-timeout",
+      attempts: 2,
+      max_attempts: 2,
+    });
+    store.jobs.set(timeoutJob.id, timeoutJob);
+    expect(
+      await processJob(
+        store,
+        stubDriver({ hang: true }),
+        testConfig({ jobTimeoutMs: 50 }),
+        timeoutJob,
+      ),
+    ).toBe("failed");
+    expect(store.jobs.get(timeoutJob.id)?.failure_kind).toBe("timeout");
+
+    const crashJob = makeJob({
+      id: "job-crash",
+      idempotency_key: "k-crash",
+      attempts: 2,
+      max_attempts: 2,
+    });
+    store.jobs.set(crashJob.id, crashJob);
+    const crashing: BrowserDriver = {
+      async run() {
+        throw new Error("browser disconnected");
+      },
+      async close() {},
+    };
+    expect(await processJob(store, crashing, testConfig(), crashJob)).toBe("failed");
+    expect(store.jobs.get(crashJob.id)?.failure_kind).toBe("infra");
+  });
 });
 
 describe("reapStaleJobs", () => {

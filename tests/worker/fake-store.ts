@@ -10,6 +10,8 @@ export function makeJob(overrides: Partial<JobRow> = {}): JobRow {
     id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
     workspace_id: WS,
     project_id: PROJECT,
+    run_id: null,
+    test_case_id: null,
     idempotency_key: "test-key-12345678",
     plan: {
       version: "1",
@@ -19,6 +21,7 @@ export function makeJob(overrides: Partial<JobRow> = {}): JobRow {
       steps: [{ action: "goto", url: "/" }],
     },
     status: "queued",
+    failure_kind: null,
     attempts: 1,
     max_attempts: 2,
     cancel_requested: false,

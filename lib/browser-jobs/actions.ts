@@ -29,9 +29,12 @@ interface BrowserJobRow {
   id: string;
   workspace_id: string;
   project_id: string;
+  run_id: string | null;
+  test_case_id: string | null;
   idempotency_key: string;
   plan: BrowserTestPlan;
   status: BrowserJob["status"];
+  failure_kind: BrowserJob["failureKind"];
   attempts: number;
   max_attempts: number;
   cancel_requested: boolean;
@@ -50,9 +53,12 @@ function toBrowserJob(row: BrowserJobRow): BrowserJob {
     id: row.id,
     workspaceId: row.workspace_id,
     projectId: row.project_id,
+    runId: row.run_id,
+    testCaseId: row.test_case_id,
     idempotencyKey: row.idempotency_key,
     plan: row.plan,
     status: row.status,
+    failureKind: row.failure_kind,
     attempts: row.attempts,
     maxAttempts: row.max_attempts,
     cancelRequested: row.cancel_requested,
@@ -78,7 +84,7 @@ export async function enqueueBrowserJob(input: unknown): Promise<ActionResult<En
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid request." };
   }
-  const { workspaceId, projectId, plan } = parsed.data;
+  const { workspaceId, projectId, runId, testCaseId, plan } = parsed.data;
   const idempotencyKey = parsed.data.idempotencyKey?.trim() || randomUUID();
 
   try {
@@ -98,6 +104,8 @@ export async function enqueueBrowserJob(input: unknown): Promise<ActionResult<En
       .insert({
         workspace_id: workspaceId,
         project_id: projectId,
+        run_id: runId ?? null,
+        test_case_id: testCaseId ?? null,
         idempotency_key: idempotencyKey,
         plan,
         created_by: userId,

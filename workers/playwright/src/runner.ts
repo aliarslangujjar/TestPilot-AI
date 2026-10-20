@@ -13,19 +13,32 @@ import type { JobRow, JobStore } from "./store.js";
  * Failure taxonomy (decides retry vs. fail vs. defer):
  * - Invalid payload / unauthorized: FAILED, no retry (deterministic).
  * - Over run limits: DEFERRED — left queued for a later pass.
- * - Step assertion failure: FAILED, no retry (deterministic outcome).
+ * - Step assertion failure: FAILED (failure_kind "assertion"), no retry.
  * - Cancel requested: CANCELLED.
  * - Driver threw / browser crashed / job timeout: INFRA failure —
- *   retried while attempts < maxAttempts, else FAILED.
+ *   retried while attempts < maxAttempts, else FAILED with failure_kind
+ *   "infra" (crash/driver error) or "timeout" (job timeout). The app
+ *   maps "timeout" to the run state `timed_out`.
  */
 
 export type ProcessOutcome = "succeeded" | "failed" | "cancelled" | "deferred" | "retried";
+
+/** Distinct class so the runner can classify a final failure as a timeout. */
+export class JobTimeoutError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "JobTimeoutError";
+  }
+}
 
 async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     const timeout = new Promise<never>((_, reject) => {
-      timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms.`)), ms);
+      timer = setTimeout(
+        () => reject(new JobTimeoutError(`${label} timed out after ${ms}ms.`)),
+        ms,
+      );
     });
     return await Promise.race([promise, timeout]);
   } finally {
@@ -132,12 +145,19 @@ export async function processJob(
     }
 
     if (driverResult.crashed) {
-      return await handleInfraFailure(store, job, `Browser crashed during execution.`, result);
+      return await handleInfraFailure(
+        store,
+        job,
+        `Browser crashed during execution.`,
+        result,
+        "infra",
+      );
     }
 
     if (result.status === "failed") {
       await store.update(job.id, {
         status: "failed",
+        failure_kind: "assertion",
         result: result as never,
         error: "A test step failed.",
       });
@@ -155,7 +175,8 @@ export async function processJob(
       startedAt,
       finishedAt: new Date().toISOString(),
     };
-    return await handleInfraFailure(store, job, sanitizeError(error), partial);
+    const kind = error instanceof JobTimeoutError ? "timeout" : "infra";
+    return await handleInfraFailure(store, job, sanitizeError(error), partial, kind);
   } finally {
     clearInterval(heartbeat);
   }
@@ -166,17 +187,21 @@ async function handleInfraFailure(
   job: JobRow,
   message: string,
   partial: BrowserJobResult,
+  kind: "infra" | "timeout",
 ): Promise<ProcessOutcome> {
   if (job.attempts < job.max_attempts) {
     // Attempts were incremented at claim time; requeue for another try.
+    // failure_kind is only set on the FINAL failure — a retried job is
+    // not a timeout/failure yet.
     await store.update(job.id, {
       ...releaseClaimPatch(),
-      error: `Attempt ${job.attempts}/${job.max_attempts} failed (infra): ${message}`,
+      error: `Attempt ${job.attempts}/${job.max_attempts} failed (${kind}): ${message}`,
     });
     return "retried";
   }
   await store.update(job.id, {
     status: "failed",
+    failure_kind: kind,
     result: partial as never,
     error: `All ${job.max_attempts} attempts failed. Last error: ${message}`,
   });
