@@ -48,6 +48,15 @@ export function isAIEnabled(config: AIConfig): boolean {
     : config.ANTHROPIC_API_KEY !== undefined;
 }
 
+/**
+ * Demo mode (AI_DEMO_MODE=true): AI features run on locally generated
+ * sample output — no provider call, no API key, no cost. Checked
+ * directly from env so it works even with no provider configured.
+ */
+export function isDemoMode(env: Record<string, string | undefined> = process.env): boolean {
+  return env.AI_DEMO_MODE === "true";
+}
+
 export function resolveModelId(config: AIConfig): string {
   return config.AI_MODEL ?? AI_DEFAULT_MODELS[config.AI_PROVIDER];
 }

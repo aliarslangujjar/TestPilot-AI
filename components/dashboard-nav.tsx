@@ -9,6 +9,7 @@ const links = [
   { href: "/dashboard", label: "Analytics", exact: true },
   { href: "/dashboard/projects", label: "Projects", exact: false },
   { href: "/dashboard/community", label: "Community", exact: false },
+  { href: "/dashboard/usage", label: "Usage", exact: true },
 ];
 
 /** Sidebar / mobile navigation for the dashboard. */

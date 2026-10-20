@@ -37,6 +37,7 @@ export * from "./test-plan";
 export * from "./public-report";
 export * from "./community";
 export * from "./github";
+export * from "./usage";
 export * from "./ai-review";
 export * from "./ai";
 export * from "./analytics";

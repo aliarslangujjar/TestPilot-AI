@@ -189,7 +189,12 @@ describe("generateStructured", () => {
 describe("getAIStatus", () => {
   it("reports provider and model without secrets", async () => {
     const status = await getAIStatus();
-    expect(status).toEqual({ enabled: true, provider: "openai", model: "gpt-4o-mini" });
+    expect(status).toEqual({
+      enabled: true,
+      provider: "openai",
+      model: "gpt-4o-mini",
+      demo: false,
+    });
   });
 
   it("reports disabled without a key", async () => {

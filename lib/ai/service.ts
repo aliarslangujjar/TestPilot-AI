@@ -4,9 +4,12 @@ import { generateObject } from "ai";
 import type { z } from "zod";
 
 import { requireWorkspaceClient } from "@/lib/workspace-authz";
+import { getUsageLimits } from "@/lib/usage/limits";
+import { releaseUsage, reserveUsage } from "@/lib/usage/usage";
 import { structuredRequestSchema, type AIProvider } from "@schemas/ai";
 
-import { AI_DEFAULT_MODELS, isAIEnabled, loadAIConfig, resolveModel } from "./config";
+import { AI_DEFAULT_MODELS, isAIEnabled, isDemoMode, loadAIConfig, resolveModel } from "./config";
+import { buildDemoObject } from "./demo";
 import { AIServiceError, toAIServiceError } from "./errors";
 import { checkQuota, logUsage } from "./usage";
 
@@ -28,15 +31,18 @@ export interface AIStatus {
   enabled: boolean;
   provider: AIProvider;
   model: string;
+  demo: boolean;
 }
 
 /** Safe status for UI gating — contains no secrets. */
 export async function getAIStatus(): Promise<AIStatus> {
   const config = loadAIConfig();
+  const demo = isDemoMode();
   return {
-    enabled: isAIEnabled(config),
+    enabled: demo || isAIEnabled(config),
     provider: config.AI_PROVIDER,
-    model: config.AI_MODEL ?? AI_DEFAULT_MODELS[config.AI_PROVIDER],
+    model: demo ? "demo" : (config.AI_MODEL ?? AI_DEFAULT_MODELS[config.AI_PROVIDER]),
+    demo,
   };
 }
 
@@ -81,7 +87,8 @@ export async function generateStructured<T>({
   } catch {
     throw new AIServiceError("AI_NOT_CONFIGURED", "AI is not configured correctly.");
   }
-  if (!isAIEnabled(config)) {
+  const demo = isDemoMode();
+  if (!demo && !isAIEnabled(config)) {
     throw new AIServiceError(
       "AI_DISABLED",
       "AI features are not enabled — no API key is configured for the selected provider.",
@@ -97,6 +104,32 @@ export async function generateStructured<T>({
   }
 
   await checkQuota(workspaceId, config);
+
+  // Free-plan period quota (atomic reservation — see lib/usage). The
+  // reservation is released if the call then fails, so failed calls are
+  // never billed against the plan.
+  const planLimits = getUsageLimits();
+  const reserved = await reserveUsage(workspaceId, { aiCalls: 1 });
+  if (!reserved) {
+    throw new AIServiceError(
+      "AI_QUOTA_EXCEEDED",
+      `Your workspace has reached the free plan's limit of ${planLimits.aiCalls} AI calls for this period. The limit resets next period.`,
+    );
+  }
+
+  if (demo) {
+    try {
+      const data = buildDemoObject(schema);
+      await logUsage(workspaceId, 0, 0);
+      return { data, usage: { inputTokens: 0, outputTokens: 0 } };
+    } catch {
+      await releaseUsage(workspaceId, { aiCalls: 1 });
+      throw new AIServiceError(
+        "AI_INVALID_RESPONSE",
+        "Demo mode could not produce a valid sample for this feature.",
+      );
+    }
+  }
 
   const model = resolveModel(config);
   const controller = new AbortController();
@@ -117,6 +150,7 @@ export async function generateStructured<T>({
     await logUsage(workspaceId, inputTokens, outputTokens);
     return { data: result.object, usage: { inputTokens, outputTokens } };
   } catch (error) {
+    await releaseUsage(workspaceId, { aiCalls: 1 });
     throw toAIServiceError(error);
   } finally {
     clearTimeout(timeout);

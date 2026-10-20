@@ -10,6 +10,8 @@ import { WorkspaceAccessDeniedError } from "@/lib/supabase/workspace-auth";
 import { requireWorkspaceClient } from "@/lib/workspace-authz";
 import { rollupExecutionStatus } from "@/lib/test-runs/rollup";
 import { validateWorkerEvidence } from "@/lib/test-runs/evidence";
+import { getUsageLimits } from "@/lib/usage/limits";
+import { getUsageCounters, meterUsage, releaseUsage, reserveUsage } from "@/lib/usage/usage";
 import { browserJobResultSchema } from "@schemas/browser-job";
 import { browserTestPlanSchema, type BrowserTestPlan } from "@schemas/browser-test";
 import {
@@ -105,6 +107,16 @@ function resultFinishedAt(result: unknown): string | null {
   if (!parsed.success) return null;
   const finished = parsed.data.finishedAt;
   return Number.isNaN(Date.parse(finished)) ? null : finished;
+}
+
+/** Whole execution seconds from the worker's own started/finished stamps. */
+function resultDurationSeconds(result: unknown): number {
+  const parsed = browserJobResultSchema.safeParse(result);
+  if (!parsed.success) return 0;
+  const ms = Date.parse(parsed.data.finishedAt) - Date.parse(parsed.data.startedAt);
+  if (!Number.isFinite(ms) || ms <= 0) return 0;
+  // A single job is capped at one hour for metering sanity.
+  return Math.min(3600, Math.round(ms / 1000));
 }
 
 interface DerivedState {
@@ -299,6 +311,25 @@ export async function createAutomatedRun(
       .map((id) => cases.find((c) => c.id === id))
       .filter((c): c is CaseRow => Boolean(c));
 
+    // Free-plan budget pre-checks (docs/COST_MODEL.md): a workspace that
+    // has already used up its execution-time or storage budget cannot
+    // start new browser work until the next period.
+    const usageLimits = getUsageLimits();
+    const counters = await getUsageCounters(workspaceId).catch(() => null);
+    if (counters && counters.executionSeconds >= usageLimits.executionSeconds) {
+      return {
+        ok: false,
+        error: `Your workspace has used its free-plan execution time for this period (${usageLimits.executionSeconds} seconds). It resets next period.`,
+      };
+    }
+    if (counters && counters.storageBytes >= usageLimits.storageBytes) {
+      return {
+        ok: false,
+        error:
+          "Your workspace has reached its free-plan artifact storage limit for this period. Delete old artifacts or wait for the next period.",
+      };
+    }
+
     const { data: run, error: runError } = await supabase
       .from("test_runs")
       .insert({
@@ -316,8 +347,21 @@ export async function createAutomatedRun(
     if (runError || !run) return { ok: false, error: UNEXPECTED };
     const runId = (run as { id: string }).id;
 
+    // Reserve the browser runs against the period quota — atomically,
+    // so concurrent run creations cannot both slip past the limit.
+    const reserved = await reserveUsage(workspaceId, { browserRuns: ordered.length });
+    if (!reserved) {
+      await supabase.from("test_runs").delete().eq("id", runId);
+      return {
+        ok: false,
+        error: `Your workspace has reached the free plan's limit of ${usageLimits.browserRuns} browser runs for this period. It resets next period.`,
+      };
+    }
+
     const fail = async (message: string): Promise<ActionResult<AutomatedRunData>> => {
-      // Don't leave a job-less or result-less run behind.
+      // Don't leave a job-less or result-less run behind, and give the
+      // reserved browser runs back — failed creations are not billed.
+      await releaseUsage(workspaceId, { browserRuns: ordered.length });
       await supabase.from("test_runs").delete().eq("id", runId);
       return { ok: false, error: message };
     };
@@ -442,6 +486,7 @@ export async function refreshAutomatedRun(
     }
 
     let changed = 0;
+    let durationSeconds = 0;
     const finalStatuses: ExecutionStatus[] = [];
     for (const result of results) {
       const job = result.browser_job_id ? jobsById.get(result.browser_job_id) : undefined;
@@ -474,6 +519,13 @@ export async function refreshAutomatedRun(
         .eq("id", result.id);
       if (error) return { ok: false, error: UNEXPECTED };
       changed += 1;
+      // First terminal transition for this result: meter the job's
+      // execution duration exactly once (executed_at was null before).
+      if (patch.executed_at) durationSeconds += resultDurationSeconds(job.result);
+    }
+
+    if (durationSeconds > 0) {
+      await meterUsage(workspaceId, { executionSeconds: durationSeconds });
     }
 
     const rolled = rollupExecutionStatus(finalStatuses);
