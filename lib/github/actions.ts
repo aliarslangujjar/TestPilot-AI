@@ -418,10 +418,16 @@ export async function dispatchGitHubWorkflow(
       });
     } catch (error) {
       const message = error instanceof GitHubApiError ? error.message : UNEXPECTED;
-      await supabase
+      // Dispatch state transitions are service-role writes (the
+      // webhook is the other writer): members hold no UPDATE policy
+      // on dispatches, so a forged status/conclusion via the table
+      // API is impossible. Membership was proven above.
+      const admin = createAdminClient();
+      await admin
         .from("github_workflow_dispatches")
         .update({ status: "dispatch_failed", error: message })
-        .eq("id", dispatch.id);
+        .eq("id", dispatch.id)
+        .eq("workspace_id", workspaceId);
       return { ok: false, error: message };
     }
 

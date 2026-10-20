@@ -284,11 +284,13 @@ describe("dispatchGitHubWorkflow", () => {
   });
 
   it("marks the record dispatch_failed when GitHub rejects (rate limited)", async () => {
-    const { memberOps } = setup({ existing: true, dispatchStatus: 403 });
+    const { adminOps } = setup({ existing: true, dispatchStatus: 403 });
     const res = await dispatchGitHubWorkflow(WS, PROJECT, {});
     expect(res.ok).toBe(false);
     expect(res.ok === false && res.error).toMatch(/rate limit/);
-    const update = memberOps.find(
+    // The failure marking is a service-role write (members hold no
+    // UPDATE policy on dispatches — audit addendum 2, F7).
+    const update = adminOps.find(
       (o) => o.table === "github_workflow_dispatches" && o.op === "update",
     );
     expect((update?.payload as { status: string }).status).toBe("dispatch_failed");

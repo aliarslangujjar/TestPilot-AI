@@ -1,5 +1,3 @@
-"use server";
-
 import { generateObject } from "ai";
 import type { z } from "zod";
 

@@ -273,3 +273,78 @@ supersedes the "Verified sound" notes where they conflict.
   at 256-bit token entropy. The `x-forwarded-for` trust caveat
   applies to all in-app limiters; edge configuration should
   overwrite the header.
+
+## Addendum 2 — full Scope A report (same day)
+
+The auth/RLS review's full report likewise arrived after the first
+summary had been processed. Its two headline items (F1 usage-RPC
+execute exposure, F6 public-report rewriting) were the HIGH and
+MEDIUM fixed by migration `20261020140000`. The remaining items were
+verified against source; confirmed ones are fixed in migration
+`20261020150000_security_hardening_2.sql` plus application changes.
+
+### Confirmed and fixed
+
+- **F2 (MEDIUM) — open redirect via backslash in the auth
+  callback.** `/\evil.com` passed the `next` check (starts with
+  "/", not "//"), and the WHATWG parser normalizes the backslash,
+  resolving off-origin. Fix: backslashes and control characters are
+  rejected in `next`, and the handler asserts the resolved
+  redirect's origin matches before redirecting. Regression test
+  covers raw and percent-encoded forms.
+- **F9 (functional, fail-closed) — the automated-run path filtered
+  `test_cases` by a `project_id` column that does not exist** (cases
+  scope to projects through their suite). Against a real PostgREST
+  every automated-run creation and browser-plan save errored into
+  "not found" — the mocked test suite could not see it. Fix: both
+  queries scope via `suites!inner(project_id)`.
+- **F7 (LOW) — members could forge GitHub dispatch state** through
+  the member UPDATE policy. Dispatch writes are service-role now
+  (webhook + the action's failure marking); the policy and grant
+  are dropped in migration 2.
+- **F5 (LOW) — last-owner protection bypass by row moving.** The
+  memberships UPDATE policy's WITH CHECK evaluates the new row, so
+  an admin of two workspaces could move a membership row between
+  them and orphan a workspace. No app code updates memberships via
+  the member client; member UPDATE is removed entirely (migration
+  2). Member management, when built, needs a policy that also pins
+  `workspace_id`/`user_id`.
+- **F8 (LOW) — direct browser-job inserts** could pre-forge
+  terminal states, creators, and claims. The INSERT policy now
+  requires a fresh queue row authored by the caller (migration 2),
+  matching exactly what both enqueue paths insert.
+- **F10 (INFO) — `workspaces.created_by` spoofable and never
+  set.** A trigger forces it from the caller's JWT on insert
+  (migration 2).
+- **F3 (LOW) — `lib/ai/service.ts` was a `"use server"` module**,
+  making `generateStructured` directly invocable by any member
+  outside the feature flows that build prompts deliberately
+  (membership + quota checks inside the function bounded the
+  impact to quota burn). The service is now a plain server module;
+  the one client-needed read (`getAIStatus`, input-free) is exposed
+  through a dedicated actions module.
+
+### Assessed and accepted (documented, not fixed)
+
+- **F4 — workspace size counts.** The SECURITY DEFINER count
+  helpers return member/owner counts for any workspace id to any
+  signed-in user. They cannot simply be revoked: RLS policies
+  (including the zero-member bootstrap) invoke them as the caller.
+  Disclosure is counts only, gated on knowing an unguessable
+  workspace UUID. Accepted as a low residual; a future fix would
+  return counts only to members while special-casing the bootstrap
+  count inside the policy path.
+- **F11 — `/reset-password` accepts any session**, not only
+  recovery sessions, and password update needs no current-password
+  re-entry. Standard Supabase behavior; a hijacked session is
+  already full account access, so the marginal risk is small.
+  Accepted; noted for the deployment checklist.
+- **F12/F13** — XFF trust (already residual item above) and
+  Supabase's standard JS-accessible token storage with no cookie
+  overrides found misconfigured. No action.
+- The Scope A pass also re-verified as sound: the proxy's
+  server-validated auth and fail-closed degradation, the
+  indistinguishable membership denials, every server action's
+  validate-then-scope pattern, each service-role call site, the
+  zero-policy secrets/deliveries tables, SECURITY DEFINER
+  search-path pinning, and the public-report token design.

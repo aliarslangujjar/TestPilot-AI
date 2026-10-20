@@ -182,11 +182,15 @@ export async function saveBrowserPlan(
 
   try {
     const { supabase, userId } = await requireWorkspaceClient(workspaceId);
+    // test_cases has no project_id column — project scoping goes
+    // through the owning suite (suites.project_id). Filtering on a
+    // nonexistent column errors in PostgREST and fails closed, which
+    // silently broke this path against a real database (audit F9).
     const { data: testCase } = await supabase
       .from("test_cases")
-      .select("id")
+      .select("id, suites!inner(project_id)")
       .eq("workspace_id", workspaceId)
-      .eq("project_id", projectId)
+      .eq("suites.project_id", projectId)
       .eq("id", testCaseId)
       .maybeSingle();
     if (!testCase) return { ok: false, error: "Test case not found." };
@@ -277,9 +281,9 @@ export async function createAutomatedRun(
 
     const { data: caseData, error: caseError } = await supabase
       .from("test_cases")
-      .select(CASE_COLUMNS)
+      .select(`${CASE_COLUMNS}, suites!inner(project_id)`)
       .eq("workspace_id", workspaceId)
-      .eq("project_id", projectId)
+      .eq("suites.project_id", projectId)
       .in("id", parsed.data.testCaseIds);
     if (caseError) return { ok: false, error: UNEXPECTED };
     const cases = (caseData ?? []) as CaseRow[];

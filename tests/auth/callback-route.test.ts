@@ -51,6 +51,14 @@ describe("GET /auth/callback", () => {
     expect(res.headers.get("location")).toBe("http://localhost:3000/dashboard/projects");
   });
 
+  it("rejects backslash URLs in next (WHATWG parser treats \\ as / — audit addendum)", async () => {
+    exchangeMock.mockResolvedValue({ error: null });
+    const res = await GET(callbackRequest("?code=abc123&next=/\\evil.example/phish"));
+    expect(res.headers.get("location")).toBe("http://localhost:3000/dashboard/projects");
+    const res2 = await GET(callbackRequest("?code=abc123&next=%2F%5Cevil.example"));
+    expect(res2.headers.get("location")).toBe("http://localhost:3000/dashboard/projects");
+  });
+
   it("sends missing codes to /login with an error flag", async () => {
     const res = await GET(callbackRequest(""));
     expect(exchangeMock).not.toHaveBeenCalled();

@@ -19,6 +19,34 @@ const sql = readFileSync(
 
 const USAGE_FUNCTIONS = ["reserve_usage", "release_usage", "meter_usage", "set_storage_usage"];
 
+const sql2 = readFileSync(
+  join(process.cwd(), "supabase/migrations/20261020150000_security_hardening_2.sql"),
+  "utf8",
+);
+
+describe("security hardening migration 2 (Scope A addendum)", () => {
+  it("removes member UPDATE on GitHub dispatches and memberships", () => {
+    expect(sql2).toContain('drop policy "Members can update workflow dispatches"');
+    expect(sql2).toContain("revoke update on public.github_workflow_dispatches from authenticated");
+    expect(sql2).toContain(
+      'drop policy "Admins can update memberships, but never demote the last owner"',
+    );
+    expect(sql2).toContain("revoke update on public.memberships from authenticated");
+  });
+
+  it("restricts browser-job inserts to fresh caller-authored queue rows", () => {
+    expect(sql2).toContain("created_by = auth.uid()");
+    expect(sql2).toContain("status = 'queued'");
+    expect(sql2).toContain("result is null");
+    expect(sql2).toContain("claimed_by is null");
+  });
+
+  it("forces workspaces.created_by from the caller JWT via trigger", () => {
+    expect(sql2).toContain("new.created_by := auth.uid()");
+    expect(sql2).toContain("trg_force_workspace_creator");
+  });
+});
+
 describe("security hardening migration", () => {
   it("revokes the default PUBLIC execute on every usage RPC and keeps service_role", () => {
     for (const fn of USAGE_FUNCTIONS) {

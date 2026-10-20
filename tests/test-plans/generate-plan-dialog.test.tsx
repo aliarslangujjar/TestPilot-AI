@@ -10,7 +10,7 @@ const { getAIStatusMock, generateTestPlanMock } = vi.hoisted(() => ({
   generateTestPlanMock: vi.fn(),
 }));
 
-vi.mock("@/lib/ai/service", () => ({
+vi.mock("@/lib/ai/status-actions", () => ({
   getAIStatus: (...args: unknown[]) => getAIStatusMock(...args),
 }));
 
