@@ -34,6 +34,7 @@ export * from "./browser-job";
 export * from "./browser-test";
 export * from "./ai-analysis";
 export * from "./test-plan";
+export * from "./public-report";
 export * from "./ai-review";
 export * from "./ai";
 export * from "./analytics";

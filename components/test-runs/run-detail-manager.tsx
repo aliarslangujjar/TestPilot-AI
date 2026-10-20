@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
+import { ShareReportPanel } from "@/components/public-reports/share-report-panel";
 import {
   completeRun,
   reopenRun,
@@ -350,6 +351,10 @@ export function RunDetailManager({
       )}
 
       <SummaryBar summary={summary} />
+
+      <div className="mt-6">
+        <ShareReportPanel workspaceId={workspaceId} projectId={projectId} runId={run.id} />
+      </div>
 
       {results.length === 0 ? (
         <p className="mt-6 text-sm text-muted-foreground">This run has no results.</p>

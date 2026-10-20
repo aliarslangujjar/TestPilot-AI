@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { ShareReportPanel } from "@/components/public-reports/share-report-panel";
 import { analyzeRunFailure } from "@/lib/ai-analysis/actions";
 import { type StoredFailureAnalysis } from "@/lib/ai-analysis/envelope";
 import { getArtifactSignedUrl } from "@/lib/run-details/artifacts";
@@ -405,6 +406,8 @@ export function AutomatedRunDetail({
           </span>
         ))}
       </div>
+
+      <ShareReportPanel workspaceId={workspaceId} projectId={projectId} runId={detail.runId} />
 
       <div className="space-y-3">
         {detail.results.map((r) => (
