@@ -291,6 +291,12 @@ export function ProjectsManager({
                           >
                             Runs
                           </Link>
+                          <Link
+                            href={`/dashboard/projects/${project.id}/plans`}
+                            className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
+                          >
+                            Plans
+                          </Link>
                           <Button size="sm" variant="ghost" onClick={() => setViewing(project)}>
                             View
                           </Button>
