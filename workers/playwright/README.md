@@ -15,6 +15,10 @@ npm run worker:start     # build + node dist entry
 
 Docker: `docker build -f workers/playwright/Dockerfile -t testpilot-worker .`
 
+Deployment (image, compose, credentials, health/metrics, rollback,
+recovery): see `docs/WORKER_DEPLOYMENT.md`. End-to-end check against a
+local staging target: `npm run worker:e2e`.
+
 ## Environment
 
 | Variable                              | Default        | Notes                                                   |
@@ -30,6 +34,9 @@ Docker: `docker build -f workers/playwright/Dockerfile -t testpilot-worker .`
 | `WORKER_DAILY_JOB_LIMIT`              | 50             | run limit (per workspace, 24h)                          |
 | `WORKER_MAX_SCREENSHOT_BYTES`         | 1000000        | artifact cap                                            |
 | `WORKER_MAX_SCREENSHOTS_PER_JOB`      | 2              | artifact cap                                            |
+| `WORKER_MAX_PARALLEL_JOBS`            | 1              | parallel claim→execute lanes in this process (max 8)    |
+| `WORKER_HEALTH_PORT`                  | 8080           | `/healthz` + `/metrics`; `0` disables                   |
+| `WORKER_SHUTDOWN_TIMEOUT_MS`          | 30000          | drain grace after SIGTERM before forced exit            |
 | `WORKER_ALLOW_LOOPBACK`               | unset          | **Test-only.** `1` disables loopback blocking           |
 | `WORKER_CHROMIUM_SANDBOX`             | on             | `0` only where the sandbox cannot run (root containers) |
 

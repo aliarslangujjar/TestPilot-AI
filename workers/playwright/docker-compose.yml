@@ -1,0 +1,52 @@
+# Playwright worker on a container host — reference deployment.
+# Usage (from the repository root):
+#   cp workers/playwright/.env.worker.example workers/playwright/.env.worker  # fill in, chmod 600
+#   docker compose -f workers/playwright/docker-compose.yml up -d --build
+# See docs/WORKER_DEPLOYMENT.md for deployment, rollback, and recovery.
+services:
+  worker:
+    build:
+      context: ../..
+      dockerfile: workers/playwright/Dockerfile
+    image: testpilot-worker:1.64.1
+    env_file:
+      - .env.worker
+    environment:
+      NODE_ENV: production
+    restart: unless-stopped
+    # Least privilege: no capabilities, no privilege escalation,
+    # read-only filesystem (the worker writes only to /tmp).
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:size=512m
+    # Resource limits: one Chromium + a few contexts. Raise alongside
+    # WORKER_MAX_PARALLEL_JOBS.
+    mem_limit: 2g
+    cpus: 2.0
+    # Health: Docker restarts/reporting use the worker's own endpoint.
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:8080/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+    # Must exceed WORKER_SHUTDOWN_TIMEOUT_MS (default 30s) so in-flight
+    # jobs can drain before Docker sends SIGKILL.
+    stop_grace_period: 45s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    # The health/metrics port is NOT published by default. Uncomment to
+    # reach it from the host's monitoring stack only.
+    # ports:
+    #   - "127.0.0.1:8080:8080"

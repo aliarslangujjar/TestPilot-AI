@@ -52,6 +52,7 @@
     "typecheck": "tsc --noEmit",
     "verify": "npm run typecheck && npm run lint && npm run format:check && npm run test && npm run build",
     "worker:build": "tsc -p workers/playwright/tsconfig.json && node -e \"require('fs').writeFileSync('workers/playwright/dist/package.json', JSON.stringify({ type: 'module' }))\"",
+    "worker:e2e": "npm run worker:build && node workers/playwright/scripts/e2e-staging.mjs",
     "worker:start": "npm run worker:build && node workers/playwright/dist/workers/playwright/src/index.js"
   },
   "version": "0.1.0"

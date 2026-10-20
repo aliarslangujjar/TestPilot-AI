@@ -3,20 +3,27 @@ import { chromium } from "playwright";
 import { assertBrowserPin } from "./browser-pin.js";
 import { loadConfig } from "./config.js";
 import { createPlaywrightDriver } from "./driver.js";
+import { startHealthServer, stopHealthServer } from "./health.js";
+import { createMetrics, recordOutcome } from "./metrics.js";
 import { processJob, reapStaleJobs } from "./runner.js";
+import { sanitizeError } from "./sanitize.js";
 import { createNetworkGuard } from "./ssrf.js";
-import { createSupabaseJobStore } from "./store.js";
+import { createSupabaseJobStore, type JobRow } from "./store.js";
 import { checkRunLimits } from "./policy.js";
 
 /**
  * Standalone Playwright worker. Polls the browser_jobs queue, claims jobs
  * atomically, executes v1 plans in isolated browser contexts, and writes
  * back sanitized results. Owns no UI and no system of record.
+ *
+ * Runs WORKER_MAX_PARALLEL_JOBS claim→execute lanes against one shared
+ * browser process (a fresh context per job, as always). Shutdown is
+ * graceful: SIGTERM/SIGINT stop new claims, in-flight jobs get up to
+ * WORKER_SHUTDOWN_TIMEOUT_MS to finish, the health endpoint flips to
+ * 503 immediately, and the process exits 0 — or 1 after the grace
+ * deadline, in which case unfinished jobs are recovered by lease
+ * expiry + reaping (see docs/WORKER_DEPLOYMENT.md).
  */
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
 
 async function main(): Promise<void> {
   assertBrowserPin();
@@ -27,6 +34,7 @@ async function main(): Promise<void> {
     );
   }
 
+  const metrics = createMetrics();
   const store = createSupabaseJobStore(config);
   const guard = createNetworkGuard({ allowLoopback: config.allowLoopback });
 
@@ -35,49 +43,42 @@ async function main(): Promise<void> {
   // and the sandbox must not be traded away for container convenience.
   const browser = await chromium.launch({ chromiumSandbox: config.chromiumSandbox });
   console.log(
-    `worker ${config.workerId} started (playwright pinned, chromium ${await browser.version()})`,
+    `worker ${config.workerId} started (node ${process.version}, playwright pinned, chromium ${await browser.version()}, lanes ${config.maxParallelJobs})`,
   );
 
   const reaped = await reapStaleJobs(store, new Date().toISOString());
   if (reaped > 0) console.log(`reaped ${reaped} stale job(s)`);
 
   let shuttingDown = false;
-  const shutdown = () => {
+  let wakeSleepers: () => void = () => {};
+  const shutdownSignal = new Promise<void>((resolve) => {
+    wakeSleepers = resolve;
+  });
+  const healthServer = startHealthServer(config.healthPort, {
+    workerId: config.workerId,
+    metrics,
+    isShuttingDown: () => shuttingDown,
+  });
+  if (healthServer) console.log(`health endpoint on :${config.healthPort} (/healthz, /metrics)`);
+
+  const sleepOrShutdown = (ms: number): Promise<void> =>
+    Promise.race([new Promise<void>((resolve) => setTimeout(resolve, ms)), shutdownSignal]);
+
+  let forceTimer: NodeJS.Timeout | null = null;
+  const beginShutdown = (signal: string) => {
+    if (shuttingDown) return;
     shuttingDown = true;
+    console.log(`received ${signal} — draining (grace ${config.shutdownTimeoutMs}ms)`);
+    wakeSleepers();
+    forceTimer = setTimeout(() => {
+      console.error("shutdown grace elapsed — forcing exit; in-flight jobs will be reaped");
+      process.exit(1);
+    }, config.shutdownTimeoutMs);
   };
-  process.on("SIGTERM", shutdown);
-  process.on("SIGINT", shutdown);
+  process.on("SIGTERM", () => beginShutdown("SIGTERM"));
+  process.on("SIGINT", () => beginShutdown("SIGINT"));
 
-  while (!shuttingDown) {
-    try {
-      const job = await claimNextAvailable();
-      if (!job) {
-        await sleep(config.pollIntervalMs);
-        continue;
-      }
-      const driver = createPlaywrightDriver(browser, guard, {
-        maxScreenshotBytes: config.maxScreenshotBytes,
-      });
-      try {
-        const outcome = await processJob(store, driver, config, job);
-        console.log(`job ${job.id}: ${outcome}`);
-      } catch (error) {
-        console.error(
-          `job ${job.id}: runner error: ${error instanceof Error ? error.message : String(error)}`,
-        );
-      } finally {
-        await driver.close();
-      }
-    } catch (error) {
-      console.error(`worker loop error: ${error instanceof Error ? error.message : String(error)}`);
-      await sleep(config.pollIntervalMs);
-    }
-  }
-
-  console.log("shutting down");
-  await browser.close();
-
-  async function claimNextAvailable() {
+  async function claimNextAvailable(): Promise<JobRow | null> {
     const candidates = await store.listQueued(20);
     for (const candidate of candidates) {
       const limits = await checkRunLimits(store, candidate, {
@@ -95,9 +96,48 @@ async function main(): Promise<void> {
     }
     return null;
   }
+
+  async function lane(): Promise<void> {
+    while (!shuttingDown) {
+      try {
+        metrics.lastPollAtMs = Date.now();
+        const job = await claimNextAvailable();
+        if (!job) {
+          await sleepOrShutdown(config.pollIntervalMs);
+          continue;
+        }
+        metrics.claimed += 1;
+        metrics.inFlight += 1;
+        const driver = createPlaywrightDriver(browser, guard, {
+          maxScreenshotBytes: config.maxScreenshotBytes,
+        });
+        try {
+          const outcome = await processJob(store, driver, config, job);
+          recordOutcome(metrics, outcome);
+          console.log(`job ${job.id}: ${outcome}`);
+        } catch (error) {
+          metrics.runnerErrors += 1;
+          console.error(`job ${job.id}: runner error: ${sanitizeError(error)}`);
+        } finally {
+          metrics.inFlight -= 1;
+          await driver.close();
+        }
+      } catch (error) {
+        console.error(`worker loop error: ${sanitizeError(error)}`);
+        await sleepOrShutdown(config.pollIntervalMs);
+      }
+    }
+  }
+
+  await Promise.all(Array.from({ length: config.maxParallelJobs }, () => lane()));
+
+  if (forceTimer) clearTimeout(forceTimer);
+  console.log("shutting down");
+  await stopHealthServer(healthServer);
+  await browser.close();
 }
 
 main().catch((error) => {
-  console.error(`worker fatal: ${error instanceof Error ? error.message : String(error)}`);
+  console.error(`worker fatal: ${sanitizeError(error)}`);
   process.exit(1);
 });

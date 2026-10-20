@@ -20,6 +20,12 @@ export interface WorkerConfig {
   dailyJobLimitPerWorkspace: number;
   maxScreenshotBytes: number;
   maxScreenshotsPerJob: number;
+  /** Parallel job lanes inside this worker process (1 = serial). */
+  maxParallelJobs: number;
+  /** Port for /healthz and /metrics (0 disables the server). */
+  healthPort: number;
+  /** Grace period for in-flight jobs after SIGTERM before forced exit. */
+  shutdownTimeoutMs: number;
   /**
    * TEST-ONLY escape hatch: allow requests to loopback addresses.
    * Never set in production — it disables part of the SSRF boundary.
@@ -43,6 +49,16 @@ function intEnv(env: NodeJS.ProcessEnv, name: string, fallback: number): number 
   return value;
 }
 
+function healthPortEnv(env: NodeJS.ProcessEnv): number {
+  const raw = env.WORKER_HEALTH_PORT;
+  if (!raw) return 8080;
+  const value = Number.parseInt(raw, 10);
+  if (!Number.isFinite(value) || value < 0 || value > 65_535) {
+    throw new Error(`WORKER_HEALTH_PORT must be 0-65535 (got "${raw}").`);
+  }
+  return value;
+}
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): WorkerConfig {
   const supabaseUrl = env.SUPABASE_URL ?? "";
   const supabaseServiceRoleKey = env.SUPABASE_SERVICE_ROLE_KEY ?? "";
@@ -61,6 +77,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): WorkerConfig {
     dailyJobLimitPerWorkspace: intEnv(env, "WORKER_DAILY_JOB_LIMIT", 50),
     maxScreenshotBytes: intEnv(env, "WORKER_MAX_SCREENSHOT_BYTES", 1_000_000),
     maxScreenshotsPerJob: intEnv(env, "WORKER_MAX_SCREENSHOTS_PER_JOB", 2),
+    maxParallelJobs: Math.min(8, intEnv(env, "WORKER_MAX_PARALLEL_JOBS", 1)),
+    healthPort: healthPortEnv(env),
+    shutdownTimeoutMs: intEnv(env, "WORKER_SHUTDOWN_TIMEOUT_MS", 30_000),
     allowLoopback: env.WORKER_ALLOW_LOOPBACK === "1",
     chromiumSandbox: env.WORKER_CHROMIUM_SANDBOX !== "0",
   };
