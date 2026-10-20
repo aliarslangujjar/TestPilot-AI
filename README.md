@@ -72,6 +72,17 @@ A fresh clone should pass `npm run verify` end to end.
 `.env.local` and fill in values locally. Real secrets are never committed
 (enforced by `.gitignore`).
 
+## Deployment
+
+The web app deploys to **Vercel** (git-connected: pushes to `main` are
+production, PRs get previews) with a **Supabase** cloud project as the
+data plane; the Playwright worker runs on a separate host. See
+[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for the per-environment
+variable matrix, the Supabase/Vercel setup runbook (migrations, auth
+redirects, callbacks), the security checklist, health checks
+(`/api/health`) and error reporting, and the current deployment
+status.
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, testing, branching,
