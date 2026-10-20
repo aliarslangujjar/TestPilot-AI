@@ -4,6 +4,12 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
+import { publishCommunityTemplate } from "@/lib/community/actions";
+import {
+  TEMPLATE_LICENSE_LABELS,
+  templateLicenseSchema,
+  type TemplateLicense,
+} from "@schemas/community";
 import {
   convertTestPlan,
   deleteTestPlan,
@@ -596,6 +602,8 @@ function PlanDetail({
           )}
         </p>
       )}
+
+      <PublishToCommunity workspaceId={workspaceId} projectId={projectId} plan={plan} />
     </div>
   );
 }
@@ -735,5 +743,103 @@ export function TestPlansManager({
         </>
       )}
     </div>
+  );
+}
+
+function PublishToCommunity({
+  workspaceId,
+  projectId,
+  plan,
+}: {
+  workspaceId: string;
+  projectId: string;
+  plan: StoredTestPlan;
+}) {
+  const [license, setLicense] = useState<TemplateLicense>("CC-BY-4.0");
+  const [description, setDescription] = useState("");
+  const [tags, setTags] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [published, setPublished] = useState(false);
+
+  async function handlePublish() {
+    setBusy(true);
+    setMessage(null);
+    const res = await publishCommunityTemplate(workspaceId, projectId, plan.id, {
+      description: description.trim(),
+      license,
+      tags: tags
+        .split(",")
+        .map((t) => t.trim().toLowerCase())
+        .filter(Boolean),
+    });
+    setBusy(false);
+    if (res.ok) {
+      setPublished(true);
+      setMessage(`Published as "${res.data.name}" under ${res.data.license}.`);
+    } else {
+      setMessage(res.error);
+    }
+  }
+
+  return (
+    <section className="mt-4 rounded-lg border border-border bg-card p-4">
+      <h3 className="font-medium">Publish to the community library</h3>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Shares a validated copy of this plan&apos;s cases as a public template under your name.
+        Publishing does not share your workspace, project, or any executed data — only these plan
+        cases.
+      </p>
+      <div className="mt-3 flex flex-col gap-2">
+        <label className="text-xs font-medium text-muted-foreground" htmlFor="publish-license">
+          License
+        </label>
+        <select
+          id="publish-license"
+          value={license}
+          onChange={(e) => setLicense(e.target.value as TemplateLicense)}
+          className="h-9 max-w-xs rounded-md border border-input bg-background px-3 text-sm"
+        >
+          {templateLicenseSchema.options.map((l) => (
+            <option key={l} value={l}>
+              {TEMPLATE_LICENSE_LABELS[l]}
+            </option>
+          ))}
+        </select>
+        <label className="text-xs font-medium text-muted-foreground" htmlFor="publish-description">
+          Description (optional)
+        </label>
+        <input
+          id="publish-description"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          maxLength={1000}
+          placeholder="What does this template cover?"
+          className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+        />
+        <label className="text-xs font-medium text-muted-foreground" htmlFor="publish-tags">
+          Tags (comma-separated, optional)
+        </label>
+        <input
+          id="publish-tags"
+          value={tags}
+          onChange={(e) => setTags(e.target.value)}
+          placeholder="checkout, payments"
+          className="h-9 max-w-sm rounded-md border border-input bg-background px-3 text-sm"
+        />
+      </div>
+      <div className="mt-3 flex items-center gap-3">
+        <Button size="sm" disabled={busy || published} onClick={() => void handlePublish()}>
+          {busy ? "Publishing…" : published ? "Published" : "Publish template"}
+        </Button>
+        <Link
+          href="/dashboard/community"
+          className={cn(buttonVariants({ variant: "link", size: "sm" }))}
+        >
+          Open community library
+        </Link>
+      </div>
+      {message && <p className="mt-2 text-sm text-muted-foreground">{message}</p>}
+    </section>
   );
 }
