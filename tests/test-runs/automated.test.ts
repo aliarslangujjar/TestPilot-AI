@@ -6,10 +6,10 @@ import {
   createAutomatedRun,
   getBrowserPlan,
   refreshAutomatedRun,
-  rollupExecutionStatus,
   saveBrowserPlan,
-  validateWorkerEvidence,
 } from "@/lib/test-runs/automated";
+import { validateWorkerEvidence } from "@/lib/test-runs/evidence";
+import { rollupExecutionStatus } from "@/lib/test-runs/rollup";
 import { WorkspaceAccessDeniedError } from "@/lib/supabase/workspace-auth";
 
 const WS = "11111111-1111-4111-8111-111111111111";

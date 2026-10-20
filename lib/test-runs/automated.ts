@@ -8,6 +8,8 @@ import type { ActionResult } from "@/lib/action-result";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { WorkspaceAccessDeniedError } from "@/lib/supabase/workspace-auth";
 import { requireWorkspaceClient } from "@/lib/workspace-authz";
+import { rollupExecutionStatus } from "@/lib/test-runs/rollup";
+import { validateWorkerEvidence } from "@/lib/test-runs/evidence";
 import { browserJobResultSchema } from "@schemas/browser-job";
 import { browserTestPlanSchema, type BrowserTestPlan } from "@schemas/browser-test";
 import {
@@ -88,28 +90,6 @@ function toError(error: unknown): string {
 
 const TERMINAL: ExecutionStatus[] = ["passed", "failed", "cancelled", "timed_out"];
 
-/**
- * The evidence gate. A job may only mark a result passed when the worker
- * reports a succeeded job whose stored result parses against the result
- * schema, says "succeeded", covers exactly the plan's steps, and has
- * every step ok. Anything else is not a pass — no matter what the queue
- * row claims.
- */
-export function validateWorkerEvidence(input: {
-  jobStatus: string;
-  result: unknown;
-  planSteps: number;
-}): boolean {
-  if (input.jobStatus !== "succeeded") return false;
-  if (input.planSteps < 1) return false;
-  const parsed = browserJobResultSchema.safeParse(input.result);
-  if (!parsed.success) return false;
-  const result = parsed.data;
-  if (result.status !== "succeeded") return false;
-  if (result.steps.length !== input.planSteps) return false;
-  return result.steps.every((step) => step.ok);
-}
-
 /** Sanitized artifact references: storage paths only, capped. */
 function sanitizeArtifacts(result: unknown): string[] {
   const parsed = browserJobResultSchema.safeParse(result);
@@ -166,17 +146,6 @@ function deriveState(job: JobRow): DerivedState {
         ? { status: "timed_out", outcome: "fail", artifacts, executedAt: finishedAt }
         : { status: "failed", outcome: "fail", artifacts, executedAt: finishedAt };
   }
-}
-
-/** Rollup precedence: running > queued > failed > timed_out > cancelled. */
-export function rollupExecutionStatus(statuses: ExecutionStatus[]): ExecutionStatus {
-  if (statuses.includes("running")) return "running";
-  if (statuses.includes("queued")) return "queued";
-  if (statuses.length === 0) return "queued";
-  if (statuses.every((s) => s === "passed")) return "passed";
-  if (statuses.includes("failed")) return "failed";
-  if (statuses.includes("timed_out")) return "timed_out";
-  return "cancelled";
 }
 
 // ---------------------------------------------------------------------------

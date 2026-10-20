@@ -11,7 +11,6 @@ import { WorkspaceAccessDeniedError } from "@/lib/supabase/workspace-auth";
 import { requireWorkspaceClient } from "@/lib/workspace-authz";
 import {
   failureAnalysisSchema,
-  failureAnalysisSourceSchema,
   type FailureAnalysis,
   type FailureAnalysisSource,
 } from "@schemas/ai-analysis";
@@ -19,6 +18,7 @@ import { browserJobResultSchema } from "@schemas/browser-job";
 import { browserTestPlanSchema, type BrowserTestPlan } from "@schemas/browser-test";
 
 import { buildFailureEvidence, type EvidenceJob } from "./evidence";
+import { parseStoredFailureAnalysis, type StoredFailureAnalysis } from "./envelope";
 import { fallbackAnalysis } from "./fallback";
 import { buildFailureAnalysisPrompt, FAILURE_ANALYSIS_SYSTEM } from "./prompt";
 
@@ -42,21 +42,6 @@ const RESULT_NOT_FOUND = "Run result not found.";
 const UNEXPECTED = "Something went wrong. Please try again.";
 
 const uuidSchema = z.string().uuid();
-
-export interface StoredFailureAnalysis {
-  analysis: FailureAnalysis;
-  source: FailureAnalysisSource;
-  /** Model that produced it; null for the fallback. */
-  model: string | null;
-  analyzedAt: string;
-}
-
-const storedEnvelopeSchema = z.object({
-  analysis: failureAnalysisSchema,
-  source: failureAnalysisSourceSchema,
-  model: z.string().nullable(),
-  analyzedAt: z.string(),
-});
 
 interface ResultRow {
   id: string;
@@ -264,9 +249,7 @@ export async function getFailureAnalysis(
     if (!data) return { ok: false, error: RESULT_NOT_FOUND };
 
     const stored = (data as { failure_analysis: unknown }).failure_analysis;
-    if (stored === null) return { ok: true, data: null };
-    const parsed = storedEnvelopeSchema.safeParse(stored);
-    return { ok: true, data: parsed.success ? parsed.data : null };
+    return { ok: true, data: parseStoredFailureAnalysis(stored) };
   } catch (error) {
     return { ok: false, error: toError(error) };
   }
