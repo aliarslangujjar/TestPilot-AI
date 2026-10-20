@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { reportError } from "@/lib/observability/report";
+import { checkRateLimit } from "@/lib/public-reports/rate-limit";
 
 /**
  * Client error beacon: browser error boundaries POST a capped,
@@ -9,7 +10,8 @@ import { reportError } from "@/lib/observability/report";
  * structured reporter as server errors and returns its report id.
  * Unauthenticated by necessity (errors happen on public pages too) —
  * the payload is strictly capped and only logged, never stored or
- * rendered, which bounds the abuse potential to log noise.
+ * rendered. A best-effort per-IP rate limit (shared limiter; per
+ * instance, like the public-report limiter) bounds log flooding.
  */
 
 export const dynamic = "force-dynamic";
@@ -21,6 +23,14 @@ const payloadSchema = z.object({
 });
 
 export async function POST(request: Request) {
+  const clientIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const limit = checkRateLimit(`error-report:${clientIp}`);
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { ok: false },
+      { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } },
+    );
+  }
   let body: unknown;
   try {
     body = await request.json();

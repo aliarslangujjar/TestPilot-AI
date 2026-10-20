@@ -78,3 +78,27 @@ jobs:
 
       - name: Validate migration files
         run: node scripts/validate-migrations.mjs
+
+  audit:
+    name: Dependency audit (advisory)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Advisory: reports high/critical dependency findings without
+    # gating merges (see docs/SECURITY_AUDIT.md). Triage findings into
+    # upgrades; do not ignore a critical for long.
+    continue-on-error: true
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies (lockfile)
+        run: npm ci
+
+      - name: Audit dependencies
+        run: npm audit --audit-level=high

@@ -37,6 +37,38 @@ describe("network guard (SSRF boundary)", () => {
     expect(await g2.allowRequest("http://e.test/")).toBe(true);
   });
 
+  it("blocks the special-registry ranges added in the 2026-10-20 audit", async () => {
+    const { guard } = guardWithDns({
+      "cgnat.test": ["100.64.0.1"],
+      "cgnat-edge.test": ["100.127.255.255"],
+      "bench.test": ["198.18.0.1"],
+      "bench-edge.test": ["198.19.255.255"],
+      "special.test": ["192.0.0.1"],
+      "doc1.test": ["192.0.2.1"],
+      "doc2.test": ["198.51.100.1"],
+      "doc3.test": ["203.0.113.1"],
+      "reserved.test": ["240.0.0.1"],
+      "broadcast.test": ["255.255.255.255"],
+    });
+    for (const host of [
+      "cgnat.test",
+      "cgnat-edge.test",
+      "bench.test",
+      "bench-edge.test",
+      "special.test",
+      "doc1.test",
+      "doc2.test",
+      "doc3.test",
+      "reserved.test",
+      "broadcast.test",
+    ]) {
+      expect(await guard.allowRequest(`http://${host}/`)).toBe(false);
+    }
+    // Just outside the CGNAT /10 is ordinary public space.
+    const { guard: g2 } = guardWithDns({ "pub.test": ["100.63.255.255"] });
+    expect(await g2.allowRequest("http://pub.test/")).toBe(true);
+  });
+
   it("blocks loopback by default, allows it only with the test flag", async () => {
     const { guard } = guardWithDns({ "loop.test": ["127.0.0.1"] });
     expect(await guard.allowRequest("http://loop.test/")).toBe(false);

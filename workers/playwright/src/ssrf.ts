@@ -80,6 +80,13 @@ function isBlockedIpv4(ip: string, allowLoopback: boolean): boolean {
   if (inCidr(value, "192.168.0.0", 16)) return true;
   if (inCidr(value, "169.254.0.0", 16)) return true; // link-local + cloud metadata
   if (inCidr(value, "0.0.0.0", 8)) return true;
+  if (inCidr(value, "100.64.0.0", 10)) return true; // CGNAT shared address space (cloud-internal in several providers)
+  if (inCidr(value, "198.18.0.0", 15)) return true; // benchmarking (RFC 2544)
+  if (inCidr(value, "192.0.0.0", 24)) return true; // IETF special registry
+  if (inCidr(value, "192.0.2.0", 24)) return true; // TEST-NET-1 (documentation)
+  if (inCidr(value, "198.51.100.0", 24)) return true; // TEST-NET-2 (documentation)
+  if (inCidr(value, "203.0.113.0", 24)) return true; // TEST-NET-3 (documentation)
+  if (inCidr(value, "240.0.0.0", 4)) return true; // reserved (includes 255.255.255.255 broadcast)
   return false;
 }
 

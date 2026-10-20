@@ -26,6 +26,10 @@ async function checkDatabase(): Promise<CheckStatus> {
       headers: { apikey: anonKey },
       signal: AbortSignal.timeout(3000),
       cache: "no-store",
+      // A health probe must not follow redirects: the configured URL is
+      // operator-controlled, but a redirect would silently retarget the
+      // probe (and its apikey header) to another host.
+      redirect: "manual",
     });
     return res.ok ? "ok" : "unreachable";
   } catch {

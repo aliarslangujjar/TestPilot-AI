@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { reportError } from "@/lib/observability/report";
+import { resetRateLimits } from "@/lib/public-reports/rate-limit";
 import { GET as healthGET } from "@/app/api/health/route";
 import { POST as errorReportPOST } from "@/app/api/error-report/route";
 
@@ -36,7 +37,7 @@ describe("health endpoint", () => {
     expect(body.checks.ai).toBe("disabled");
   });
 
-  it("reports ok when the Supabase auth health endpoint answers", async () => {
+  it("reports ok when the Supabase auth health endpoint answers (and never follows redirects)", async () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://proj.supabase.co");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "anon-key");
     getAIStatusMock.mockResolvedValue({
@@ -45,14 +46,18 @@ describe("health endpoint", () => {
       model: "m",
       demo: false,
     });
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => ({ ok: true })),
-    );
+    const fetchMock = vi.fn(async () => ({ ok: true }));
+    vi.stubGlobal("fetch", fetchMock);
     const res = await healthGET();
     const body = await res.json();
     expect(body.status).toBe("ok");
     expect(body.checks).toEqual({ database: "ok", ai: "ok" });
+    // Audit regression: the probe carries the apikey header and must not
+    // be redirectable to another host.
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/auth/v1/health"),
+      expect.objectContaining({ redirect: "manual" }),
+    );
     vi.unstubAllGlobals();
   });
 
@@ -107,6 +112,29 @@ describe("reportError", () => {
 });
 
 describe("error-report beacon", () => {
+  it("rate-limits floods per client IP (audit regression)", async () => {
+    resetRateLimits();
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const post = (ip: string) =>
+      errorReportPOST(
+        new Request("http://localhost/api/error-report", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-forwarded-for": ip },
+          body: JSON.stringify({ message: "flood" }),
+        }),
+      );
+    for (let i = 0; i < 30; i++) {
+      expect((await post("203.0.113.9")).status).toBe(200);
+    }
+    const blocked = await post("203.0.113.9");
+    expect(blocked.status).toBe(429);
+    expect(blocked.headers.get("Retry-After")).toBeTruthy();
+    // A different source is unaffected.
+    expect((await post("203.0.113.10")).status).toBe(200);
+    spy.mockRestore();
+    resetRateLimits();
+  });
+
   it("accepts a capped payload and returns a report id", async () => {
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     const res = await errorReportPOST(
