@@ -15,4 +15,12 @@ export default tseslint.config(
       ...nextPlugin.configs["core-web-vitals"].rules,
     },
   },
+  {
+    // Plain Node scripts (run directly by node, e.g. CI helpers) get
+    // the Node globals they actually use.
+    files: ["scripts/**/*.mjs"],
+    languageOptions: {
+      globals: { console: "readonly", process: "readonly" },
+    },
+  },
 );
