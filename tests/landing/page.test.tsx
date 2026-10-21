@@ -9,7 +9,9 @@ afterEach(() => cleanup());
 describe("landing page", () => {
   it("presents the product honestly with sign-in entry points", () => {
     render(<HomePage />);
-    expect(screen.getByRole("heading", { name: "Manual QA, organized." })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Manual QA, organized. Browser QA, executed." }),
+    ).toBeInTheDocument();
     const signIns = screen.getAllByRole("link", { name: /get started/i });
     expect(signIns.length).toBeGreaterThan(0);
     for (const link of signIns) {
@@ -19,8 +21,10 @@ describe("landing page", () => {
 
   it("marks unbuilt capabilities as planned, not shipped", () => {
     render(<HomePage />);
-    expect(screen.getByText("AI-assisted test case generation")).toBeInTheDocument();
-    expect(screen.getByText("Playwright browser execution")).toBeInTheDocument();
+    expect(
+      screen.getByText("Hosted cloud deployment (self-hosting works today)"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Payments and paid plans")).toBeInTheDocument();
     const planned = screen.getAllByText("Planned");
     expect(planned.length).toBe(3);
   });

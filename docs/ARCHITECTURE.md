@@ -1,6 +1,7 @@
 # TestPilot AI — Architecture
 
-Living document. Last updated: 2026-10-18.
+Living document. Last updated: 2026-10-20 (public-beta refresh: status markers
+reconciled with the shipped feature set; the design content is unchanged).
 
 This document defines the system's application boundaries, the authorization
 model, how background browser execution will work, how the database evolves,
@@ -32,9 +33,11 @@ platform generates browser tests, executes them, and reports results.
 Four boundaries. Each owns its responsibilities and its deployable; nothing
 crosses a boundary except through the contracts listed.
 
-### 2.1 Web app (`app/`, `components/`, `lib/`) — ✅ scaffolded
+### 2.1 Web app (`app/`, `components/`, `lib/`) — ✅ implemented
 
-Owns: UI, API routes, auth session handling, AI orchestration (provider TBD).
+Owns: UI, API routes, auth session handling, AI orchestration
+(provider-independent service over the Vercel AI SDK — OpenAI or Anthropic,
+plus a no-key demo mode).
 
 Must never:
 
@@ -43,7 +46,10 @@ Must never:
   only (API routes), never in client bundles.
 - Bypass Row Level Security by reaching Postgres directly from client code.
 
-### 2.2 Data plane (Supabase: Postgres + Auth) — ⬜ planned
+### 2.2 Data plane (Supabase: Postgres + Auth) — ✅ implemented
+
+(Code and migrations are complete; creating the cloud Supabase project is
+an owner deployment step — see the status section of DEPLOYMENT.md.)
 
 Postgres is the system of record (users, projects, test cases, runs,
 results). Supabase Auth is the identity provider.
@@ -68,7 +74,7 @@ same contracts as everyone else), or share memory/state with the web app.
 
 See §5 for the execution model.
 
-### 2.4 Shared schemas (`packages/schemas/`) — 🔶 foundational primitives only
+### 2.4 Shared schemas (`packages/schemas/`) — ✅ implemented
 
 zod v4 schemas imported by the web app and the worker via the `@schemas/*`
 path alias. This is the **contract boundary**: API shapes, job payloads, and
@@ -79,34 +85,34 @@ Rules:
 - Every API route validates request input against a schema from here.
 - Every worker job payload and result report validates against a schema.
 - No `any`-typed payloads cross a boundary.
-- Today this holds only primitives (`uuidSchema`, `isoDateTimeSchema`,
-  `paginationSchema`, `apiErrorSchema`). Domain schemas arrive with the
-  product domain — see ROADMAP Phase 1–2.
+- Domain schemas now cover the full product: test management, test plans,
+  the browser-test specification v1, runs and results, public reports,
+  community templates, usage, analytics, and GitHub integrations.
 
 ### Boundary-crossing summary
 
 | From → To         | Contract                                  | Status |
 | ----------------- | ----------------------------------------- | ------ |
-| Web → Postgres    | RLS-scoped client (`anon`) / service role | ⬜     |
-| Worker → Postgres | Service role, explicit authz in code      | ⬜     |
-| Web → Worker      | Job queue (mechanism TBD — see §5)        | ⬜     |
-| Worker → Web      | Result-reporting API + shared schemas     | ⬜     |
-| Anyone → Anyone   | `@schemas/*` zod contracts                | 🔶     |
+| Web → Postgres    | RLS-scoped client (`anon`) / service role | ✅     |
+| Worker → Postgres | Service role, explicit authz in code      | ✅     |
+| Web → Worker      | `browser_jobs` table queue, worker polls  | ✅     |
+| Worker → Web      | Results via worker store + shared schemas | ✅     |
+| Anyone → Anyone   | `@schemas/*` zod contracts                | ✅     |
 
 ## 3. Authorization model
 
 - **Identity:** Supabase Auth. Sessions live in the web app; the worker is a
-  service principal, not a user. ⬜
+  service principal, not a user. ✅
 - **Enforcement point:** Postgres RLS for user-scoped data. Policies are
   written per table, alongside the migration that creates the table (§4).
   Service-role code paths enforce authorization in application code because
-  RLS does not apply to them. ⬜
-- **Tenancy:** multi-tenant workspaces are planned (ROADMAP Phase 1+). Until
-  the tenancy model lands, no shared-workspace features are built. ⬜
+  RLS does not apply to them. ✅
+- **Tenancy:** multi-tenant workspaces (owner/admin/member roles), enforced
+  by RLS plus the server-side membership gate (`requireWorkspaceClient`). ✅
 - **Secrets:** `SUPABASE_SERVICE_ROLE_KEY` and any AI provider keys are
   server-only. Names are declared in `.env.example`; values live in
   `.env.local` / the hosting provider's secret store and are never committed
-  (`.gitignore` enforced). ✅ (convention; no keys exist yet)
+  (`.gitignore` enforced). ✅
 
 ## 4. Versioned database migrations
 
@@ -127,8 +133,10 @@ schema changes. No ad-hoc DDL against any shared database.
   (canary queries: table exists, expected columns, RLS enabled, policy
   count). Never assume cloud state — check it. The canary query travels with
   the completion report, never embedded in the migration file.
-- **Status:** ⬜ no migrations exist yet. Conventions documented in
-  `supabase/migrations/README.md`.
+- **Status:** ✅ the full schema ships as versioned migrations in
+  `supabase/migrations/` (see `supabase/migrations/README.md`). Applying
+  them to any given environment is verified per-environment with the
+  canary queries, never assumed.
 
 ## 5. Background browser execution (Playwright worker)
 
@@ -206,38 +214,44 @@ explicit, unverified label.
 - **Unit (Vitest):** ✅ configured (`tests/`, `vitest run`). Test pure
   logic, schema validation, and utilities. The `@` / `@schemas` aliases are
   wired in `vitest.config.mts` — tests may import through them.
-- **API routes:** test handlers with validated-input / rejected-input cases
-  once routes exist. ⬜
-- **E2E (Playwright, against the web app):** planned for critical user
-  flows once they exist; lives apart from the execution worker. ⬜
-- **Worker tests:** run logic unit-tested with a mocked browser; a small
-  integration matrix against real Playwright on commissioning. ⬜
+- **API routes:** handlers tested with validated-input / rejected-input
+  cases (webhooks, health, error reporting). ✅
+- **Scenario/E2E:** release-readiness scenarios (`tests/release/`) cover the
+  first-run journey and REAL worker execution against a loopback demo app
+  (docs/RELEASE_READINESS.md). Full browser-driven E2E of the web UI itself
+  remains future work. 🔶
+- **Worker tests:** runner/policy/driver unit suites plus real-Chromium
+  integration against the fixture target, and a staging E2E script
+  (`npm run worker:e2e`). ✅
 - **Gate:** `npm run verify`
   (`typecheck → lint → format:check → test → build`) must pass before any
   push. ✅
 
 ## 8. Configuration & environments
 
-| Concern           | Rule                                                    | Status          |
-| ----------------- | ------------------------------------------------------- | --------------- |
-| Variable names    | Declared in `.env.example` (names only)                 | ✅              |
-| Local values      | `.env.local`, gitignored, never committed               | ✅ (convention) |
-| Required at build | Only `NEXT_PUBLIC_*` may be inlined into client bundles | ✅ (convention) |
-| Deployments       | Secret store of the hosting provider (TBD)              | ⬜              |
+| Concern           | Rule                                                                                  | Status           |
+| ----------------- | ------------------------------------------------------------------------------------- | ---------------- |
+| Variable names    | Declared in `.env.example` (names only)                                               | ✅               |
+| Local values      | `.env.local`, gitignored, never committed                                             | ✅ (convention)  |
+| Required at build | Only `NEXT_PUBLIC_*` may be inlined into client bundles                               | ✅ (convention)  |
+| Deployments       | Vercel (web) + separate worker host; runbooks in DEPLOYMENT.md / WORKER_DEPLOYMENT.md | 🔶 (owner steps) |
 
 ## 9. Implemented vs planned
 
-| Area                                                                         | Status          |
-| ---------------------------------------------------------------------------- | --------------- |
-| Next.js 16 App Router shell, Tailwind v4 + shadcn theme, `cn()`, `ui/button` | ✅              |
-| ESLint (Next plugin) + Prettier + strict TS + aliases                        | ✅              |
-| Vitest + smoke tests                                                         | ✅              |
-| Shared-schema primitives                                                     | 🔶              |
-| Migration / RLS / authz conventions                                          | ✅ (documented) |
-| Supabase project, schema, Auth, RLS policies                                 | ⬜              |
-| API routes, AI test generation                                               | ⬜              |
-| Queue, Playwright worker, result reporting                                   | ⬜              |
-| Tenancy, deployment targets                                                  | ⬜              |
+| Area                                                                   | Status           |
+| ---------------------------------------------------------------------- | ---------------- |
+| Web app: auth, workspaces/projects, test management & manual execution | ✅               |
+| AI generation + human review, template-guided plans, failure analysis  | ✅               |
+| Playwright worker: queue, execution, evidence, hardening               | ✅               |
+| Automated run details, comparison, analytics dashboard                 | ✅               |
+| Public QA reports, community templates, GitHub Actions integration     | ✅               |
+| Usage metering, free-plan quotas, demo mode                            | ✅               |
+| Supabase schema (versioned migrations), Auth, RLS policies             | ✅               |
+| Multi-tenant workspaces (owner/admin/member)                           | ✅               |
+| Security audit fixes, release-readiness suite, deployment runbooks     | ✅               |
+| Hosted cloud deployment (Vercel project + cloud Supabase)              | ⬜ (owner steps) |
+| Worker Docker image build verification on a container host             | ⬜               |
+| Payments / paid plans                                                  | ⬜ (deferred)    |
 
 ## 10. Document map
 
@@ -245,3 +259,8 @@ explicit, unverified label.
 - [ROADMAP.md](ROADMAP.md) — phased build plan with exit criteria
 - [PHASE_STATUS.md](PHASE_STATUS.md) — living tracker of phase completion
 - [decisions/ADR-001-initial-architecture.md](decisions/ADR-001-initial-architecture.md) — why this architecture
+- [SECURITY_AUDIT.md](SECURITY_AUDIT.md) — scoped audit findings, fixes, residual risks
+- [RELEASE_READINESS.md](RELEASE_READINESS.md) — release scenario suite and its actual results
+- [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md) — what the beta does not do (yet)
+- [BETA_RELEASE_CHECKLIST.md](BETA_RELEASE_CHECKLIST.md) — beta acceptance criteria and their evidence
+- [DEPLOYMENT.md](DEPLOYMENT.md) — deployment runbook and current deployment status

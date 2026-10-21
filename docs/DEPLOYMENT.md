@@ -171,8 +171,11 @@ permission to create the project` (the integration's identity cannot
   have nothing to point at yet.
 - ⛔ **Therefore deployed auth, project CRUD, and RLS are NOT yet
   verified** — they cannot be until the two steps above exist. What
-  _is_ verified: the identical code and migration set run against the
-  local Supabase stack, and every behavior above is covered by the
-  mocked test suite. Once the owner completes runbook steps 1–2, the
-  six-point verification pass in this document is the checklist to run
-  (or ask for it to be run).
+  _is_ verified: every behavior above is covered by the automated
+  test suite (592 tests, including real-Chromium worker execution),
+  and the migration set is pattern-verified with per-migration
+  canary queries; applying the pending migration set to the local
+  stack (`supabase migration up`) is an owner step that was still
+  outstanding when this status was written. Once the owner completes
+  runbook steps 1–2, the six-point verification pass in this document
+  is the checklist to run (or ask for it to be run).

@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 export const metadata: Metadata = {
   title: "TestPilot AI — Open-source QA test management",
   description:
-    "TestPilot AI is an open-source platform for organizing manual QA: projects, test suites, and test cases with workspace-grade security.",
+    "TestPilot AI is an open-source QA platform: test management, AI-assisted generation with human review, real Playwright browser execution, and shareable QA reports — with workspace-grade security.",
 };
 
 const features = [
@@ -21,12 +21,16 @@ const features = [
     body: "Group cases into suites. Write titles, preconditions, ordered steps with per-step expectations, priorities, and tags.",
   },
   {
-    title: "Draft → active workflow",
-    body: "Draft cases privately, activate them when they're ready, and duplicate anything with one click when requirements fork.",
+    title: "AI generation, human review",
+    body: "Generate test cases and plans from your requirements with OpenAI or Anthropic — nothing is saved until a human approves it in the review gate. Or run the built-in demo mode with no API key at all.",
   },
   {
-    title: "History-preserving archive",
-    body: "Archiving hides work from the default view but never deletes it. Every case you've ever written stays readable.",
+    title: "Playwright browser execution",
+    body: "Approved plans run in a hardened Playwright worker against your project's base URL, with per-step results and screenshot evidence. Plans are a constrained, reviewable spec — never arbitrary scripts.",
+  },
+  {
+    title: "Public QA reports",
+    body: "Share a run's results through an unguessable, revocable link that shows only an approved, sanitized summary — and browse a community library of reusable test templates.",
   },
   {
     title: "Workspace security",
@@ -39,9 +43,9 @@ const features = [
 ];
 
 const roadmap = [
-  "AI-assisted test case generation",
-  "Playwright browser execution",
-  "Test runs & results tracking",
+  "Hosted cloud deployment (self-hosting works today)",
+  "Payments and paid plans",
+  "More integrations (issue trackers, chat notifications)",
 ];
 
 function Logo() {
@@ -95,12 +99,12 @@ export default function HomePage() {
             Open source · MIT licensed
           </p>
           <h1 className="mx-auto mt-6 max-w-3xl text-4xl font-bold tracking-tight sm:text-5xl">
-            Manual QA, organized.
+            Manual QA, organized. Browser QA, executed.
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
-            TestPilot AI is an open-source test management platform for teams who ship: projects,
-            test suites, and detailed manual test cases — with workspace-grade security built in
-            from day one.
+            TestPilot AI is an open-source QA platform for teams who ship: test management,
+            AI-assisted generation with human review, and real browser execution with evidence —
+            with workspace-grade security built in from day one.
           </p>
           <div className="mt-8 flex items-center justify-center gap-3">
             <Link href="/login" className={cn(buttonVariants({ size: "lg" }))}>
@@ -120,7 +124,7 @@ export default function HomePage() {
         <section id="features" className="border-t bg-muted/40">
           <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
             <h2 className="text-center text-2xl font-semibold tracking-tight">
-              Everything manual testing needs
+              The full QA loop, in one place
             </h2>
             <p className="mx-auto mt-2 max-w-2xl text-center text-muted-foreground">
               Built for QA analysts first — the people who actually write and run the tests.
@@ -168,7 +172,8 @@ export default function HomePage() {
               Start organizing your QA today
             </h2>
             <p className="mx-auto mt-2 max-w-xl text-muted-foreground">
-              Create an account, set up your first project, and write your first suite in minutes.
+              Create an account, set up your first project, and write your first suite in minutes —
+              or explore with demo mode and the sample app, no AI key required.
             </p>
             <Link href="/login" className={cn(buttonVariants({ size: "lg" }), "mt-6")}>
               Get started — it&apos;s free

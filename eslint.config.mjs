@@ -18,13 +18,14 @@ export default tseslint.config(
   {
     // Plain Node scripts (run directly by node, e.g. CI helpers) get
     // the Node globals they actually use.
-    files: ["scripts/**/*.mjs", "workers/playwright/scripts/**/*.mjs"],
+    files: ["scripts/**/*.mjs", "workers/playwright/scripts/**/*.mjs", "examples/**/*.mjs"],
     languageOptions: {
       globals: {
         console: "readonly",
         process: "readonly",
         fetch: "readonly",
         URL: "readonly",
+        URLSearchParams: "readonly",
         setTimeout: "readonly",
         clearTimeout: "readonly",
       },
