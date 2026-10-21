@@ -28,9 +28,11 @@ Release: **v0.1.0-beta.1** · Prepared: 2026-10-20 · Code state: `main`
 
 ## Final runs (filled at tagging time)
 
-- `npm run verify`: ⏳
-- Clean-environment `npm run test:release`: ⏳
-- Tag: `v0.1.0-beta.1` — applied only after both runs pass.
+- `npm run verify`: **PASS** — 594/594 tests, typecheck/lint/format/
+  build green (2026-10-20, on the tree tagged below).
+- Clean-environment `npm run test:release`: **PASS** — fresh clone of
+  the beta commit + `npm ci` (282 packages, no env files) → 28/28.
+- Tag: `v0.1.0-beta.1` — applied to the commit carrying this checklist.
 
 ## Remaining blockers (disclosed; they gate a _production_ launch, not this source beta)
 
