@@ -49,6 +49,7 @@
     "lint:fix": "eslint . --fix",
     "start": "next start",
     "test": "vitest run",
+    "test:release": "vitest run tests/release",
     "typecheck": "tsc --noEmit",
     "verify": "npm run typecheck && npm run lint && npm run format:check && npm run test && npm run build",
     "worker:build": "tsc -p workers/playwright/tsconfig.json && node -e \"require('fs').writeFileSync('workers/playwright/dist/package.json', JSON.stringify({ type: 'module' }))\"",

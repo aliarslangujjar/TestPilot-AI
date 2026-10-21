@@ -286,7 +286,11 @@ export function createPlaywrightDriver(
           if (hooks.onStepFailure) {
             let screenshot: Buffer | null = null;
             try {
-              const shot = await page.screenshot({ type: "png" });
+              // Bounded: on a page stuck mid-navigation an uncapped
+              // screenshot waits for the full protocol timeout (~30s)
+              // per failed step — found by the release-readiness
+              // hanging-page scenario.
+              const shot = await page.screenshot({ type: "png", timeout: 5_000 });
               if (shot.length <= options.maxScreenshotBytes) screenshot = shot;
             } catch {
               // Screenshot is best-effort; leave it null.
