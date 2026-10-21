@@ -2,6 +2,15 @@
 
 [![CI](https://github.com/aliarslangujjar/TestPilot-AI/actions/workflows/ci.yml/badge.svg)](https://github.com/aliarslangujjar/TestPilot-AI/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.md)
+[![Release](https://img.shields.io/github/v/release/aliarslangujjar/TestPilot-AI?include_prereleases)](https://github.com/aliarslangujjar/TestPilot-AI/releases)
+[![Status: public beta](https://img.shields.io/badge/status-public%20beta-orange)](docs/KNOWN_LIMITATIONS.md)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)](CONTRIBUTING.md)
+
+[![Next.js 16](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org)
+[![TypeScript strict](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![Supabase](https://img.shields.io/badge/Supabase-Postgres-3ECF8E?logo=supabase&logoColor=white)](https://supabase.com)
+[![Playwright](https://img.shields.io/badge/Playwright-1.64-2EAD33?logo=playwright&logoColor=white)](https://playwright.dev)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D20.9-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org)
 
 Open-source AI-powered QA SaaS.
 
